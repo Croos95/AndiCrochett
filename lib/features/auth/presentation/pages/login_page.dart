@@ -3,10 +3,12 @@ import 'package:andicrochett/core/constants/colors.dart';
 import 'package:andicrochett/core/constants/sizes.dart';
 import 'package:andicrochett/core/constants/strings.dart';
 import 'package:andicrochett/core/config/routes.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  LoginPage
 // ─────────────────────────────────────────────────────────────────────────────
+
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -28,9 +30,9 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
       backgroundColor: AppColors.background,
       body: LayoutBuilder(
         builder: (context, constraints) {
