@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:andicrochett/core/constants/colors.dart';
 import 'package:andicrochett/core/constants/sizes.dart';
 import 'package:andicrochett/core/constants/strings.dart';
-import 'package:andicrochett/core/config/routes.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:andicrochett/features/auth/presentation/providers/auth_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  LoginPage
@@ -22,6 +22,8 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _rememberMe = false;
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -30,9 +32,144 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
+  Future<void> _handleSignIn() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    final ok = await context.read<AuthProvider>().signIn(
+      email: _emailController.text,
+      password: _passwordController.text,
+    );
+    if (!mounted) return;
+    if (!ok) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = context.read<AuthProvider>().errorMessage;
+      });
+    }
+    // Si ok == true, el _AuthGate redirige automáticamente al Dashboard.
+  }
+
+  Future<void> _handleForgotPassword() async {
+    final emailCtrl = TextEditingController(text: _emailController.text);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Restablecer contraseña'),
+        content: TextField(
+          controller: emailCtrl,
+          keyboardType: TextInputType.emailAddress,
+          decoration: const InputDecoration(
+            labelText: 'Correo electrónico',
+            hintText: 'andi@crochet.com',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Enviar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final ok = await context.read<AuthProvider>().sendPasswordReset(
+      emailCtrl.text,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'Correo enviado. Revisa tu bandeja de entrada.'
+              : context.read<AuthProvider>().errorMessage ?? 'Error',
+        ),
+        backgroundColor: ok ? AppColors.verdeOliva : AppColors.error,
+      ),
+    );
+  }
+
+  Future<void> _handleRegister() async {
+    final emailCtrl = TextEditingController();
+    final passCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Crear cuenta'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Correo electrónico',
+                ),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Requerido';
+                  if (!v.contains('@')) return 'Correo inválido';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: passCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Contraseña'),
+                validator: (v) {
+                  if (v == null || v.isEmpty) return 'Requerida';
+                  if (v.length < 6) return 'Mínimo 6 caracteres';
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (formKey.currentState!.validate())
+                Navigator.pop(context, true);
+            },
+            child: const Text('Crear'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    final ok = await context.read<AuthProvider>().register(
+      email: emailCtrl.text,
+      password: passCtrl.text,
+    );
+    if (!mounted) return;
+    if (!ok) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = context.read<AuthProvider>().errorMessage;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
       backgroundColor: AppColors.background,
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -49,17 +186,15 @@ Widget build(BuildContext context) {
                   passwordController: _passwordController,
                   obscurePassword: _obscurePassword,
                   rememberMe: _rememberMe,
+                  isLoading: _isLoading,
+                  errorMessage: _errorMessage,
                   onTogglePassword: () =>
                       setState(() => _obscurePassword = !_obscurePassword),
                   onToggleRemember: (v) =>
                       setState(() => _rememberMe = v ?? false),
-                  onSubmit: () {
-                    // Navegar directamente al dashboard
-                    Navigator.pushReplacementNamed(
-                      context,
-                      AppRoutes.dashboard,
-                    );
-                  },
+                  onSubmit: _handleSignIn,
+                  onForgotPassword: _handleForgotPassword,
+                  onRegister: _handleRegister,
                 ),
               ),
             ],
@@ -174,9 +309,13 @@ class _RightPanel extends StatelessWidget {
     required this.passwordController,
     required this.obscurePassword,
     required this.rememberMe,
+    required this.isLoading,
+    required this.errorMessage,
     required this.onTogglePassword,
     required this.onToggleRemember,
     required this.onSubmit,
+    required this.onForgotPassword,
+    required this.onRegister,
   });
 
   final GlobalKey<FormState> formKey;
@@ -184,9 +323,13 @@ class _RightPanel extends StatelessWidget {
   final TextEditingController passwordController;
   final bool obscurePassword;
   final bool rememberMe;
+  final bool isLoading;
+  final String? errorMessage;
   final VoidCallback onTogglePassword;
   final ValueChanged<bool?> onToggleRemember;
-  final VoidCallback onSubmit;
+  final Future<void> Function() onSubmit;
+  final Future<void> Function() onForgotPassword;
+  final Future<void> Function() onRegister;
 
   @override
   Widget build(BuildContext context) {
@@ -213,13 +356,16 @@ class _RightPanel extends StatelessWidget {
                   passwordController: passwordController,
                   obscurePassword: obscurePassword,
                   rememberMe: rememberMe,
+                  isLoading: isLoading,
+                  errorMessage: errorMessage,
                   onTogglePassword: onTogglePassword,
                   onToggleRemember: onToggleRemember,
                   onSubmit: onSubmit,
+                  onForgotPassword: onForgotPassword,
                 ),
                 const SizedBox(height: Sizes.xl),
                 // ── Footer ─────────────────────────────────────────────────
-                _SignUpFooter(),
+                _SignUpFooter(onRegister: onRegister),
               ],
             ),
           ),
@@ -288,9 +434,12 @@ class _FormCard extends StatelessWidget {
     required this.passwordController,
     required this.obscurePassword,
     required this.rememberMe,
+    required this.isLoading,
+    required this.errorMessage,
     required this.onTogglePassword,
     required this.onToggleRemember,
     required this.onSubmit,
+    required this.onForgotPassword,
   });
 
   final GlobalKey<FormState> formKey;
@@ -298,9 +447,12 @@ class _FormCard extends StatelessWidget {
   final TextEditingController passwordController;
   final bool obscurePassword;
   final bool rememberMe;
+  final bool isLoading;
+  final String? errorMessage;
   final VoidCallback onTogglePassword;
   final ValueChanged<bool?> onToggleRemember;
-  final VoidCallback onSubmit;
+  final Future<void> Function() onSubmit;
+  final Future<void> Function() onForgotPassword;
 
   @override
   Widget build(BuildContext context) {
@@ -398,9 +550,45 @@ class _FormCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: Sizes.xl),
+            // Mensaje de error
+            if (errorMessage != null) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Sizes.md,
+                  vertical: Sizes.sm,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(Sizes.radiusMd),
+                  border: Border.all(
+                    color: AppColors.error.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      color: AppColors.error,
+                      size: 18,
+                    ),
+                    const SizedBox(width: Sizes.sm),
+                    Expanded(
+                      child: Text(
+                        errorMessage!,
+                        style: const TextStyle(
+                          color: AppColors.error,
+                          fontSize: Sizes.fontSizeSm,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: Sizes.md),
+            ],
             // Botón principal
             ElevatedButton(
-              onPressed: onSubmit,
+              onPressed: isLoading ? null : onSubmit,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.verdeOliva,
                 foregroundColor: AppColors.texto,
@@ -413,7 +601,16 @@ class _FormCard extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              child: const Text(AppStrings.login),
+              child: isLoading
+                  ? const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: AppColors.texto,
+                      ),
+                    )
+                  : const Text(AppStrings.login),
             ),
             const SizedBox(height: Sizes.xl),
             // Divisor "O continúa con"
@@ -605,6 +802,9 @@ class _SocialButton extends StatelessWidget {
 //  Footer "¿Aún no tienes cuenta?"
 // ─────────────────────────────────────────────────────────────────────────────
 class _SignUpFooter extends StatelessWidget {
+  const _SignUpFooter({required this.onRegister});
+  final Future<void> Function() onRegister;
+
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -615,9 +815,7 @@ class _SignUpFooter extends StatelessWidget {
           style: TextStyle(color: AppColors.texto, fontSize: Sizes.fontSizeSm),
         ),
         GestureDetector(
-          onTap: () {
-            // TODO: navegar a registro
-          },
+          onTap: onRegister,
           child: const Text(
             'Crear una cuenta',
             style: TextStyle(

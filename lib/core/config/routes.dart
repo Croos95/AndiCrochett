@@ -20,7 +20,6 @@ class AppRoutes {
     dashboard: (_) => const DashboardPage(),
     //inventory: (_) => const InventoryPage(),
     //agenda: (_) => const AgendaPage(),
-    //patternEditor: (_) => const PatternEditorPage(),
     //profile: (_) => const ProfilePage(),
   };
 

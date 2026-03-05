@@ -96,12 +96,12 @@ class _SidebarMenuState extends State<SidebarMenu> {
                     onTap: () => widget.onRouteSelected('agenda'),
                   ),
                   _MenuItem(
-                    icon: Icons.grid_on,
-                    label: 'Patrones',
-                    route: 'patterns',
-                    isSelected: widget.selectedRoute == 'patterns',
+                    icon: Icons.design_services,
+                    label: 'Diseños',
+                    route: 'designs',
+                    isSelected: widget.selectedRoute == 'designs',
                     isCollapsed: _isCollapsed,
-                    onTap: () => widget.onRouteSelected('patterns'),
+                    onTap: () => widget.onRouteSelected('designs'),
                   ),
                   _MenuItem(
                     icon: Icons.person,

@@ -6,6 +6,7 @@ import 'package:andicrochett/core/constants/sizes.dart';
 import 'package:andicrochett/features/dashboard/presentation/widgets/sidebar_menu.dart';
 import 'package:andicrochett/features/dashboard/presentation/widgets/dashboard_footer.dart';
 import 'package:andicrochett/features/inventory/presentation/pages/inventory_page.dart';
+import 'package:andicrochett/features/designs/presentation/pages/designs_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -31,8 +32,8 @@ class _DashboardPageState extends State<DashboardPage> {
         return const InventoryPage();
       case 'agenda':
         return const Center(child: Text('Agenda'));
-      case 'patterns':
-        return const Center(child: Text('Patrones'));
+      case 'designs':
+        return const DesignsPage();
       case 'profile':
         return const _FirebaseTestView();
       default:
@@ -311,11 +312,7 @@ class _FirebaseTestViewState extends State<_FirebaseTestView>
         'authProvider': user != null ? 'google' : 'demo',
         'createdAt': now,
         'updatedAt': now,
-        'settings': {
-          'theme': 'light',
-          'language': 'es',
-          'notifications': true,
-        },
+        'settings': {'theme': 'light', 'language': 'es', 'notifications': true},
       });
       _setStatus('users', _SeedStatus.done);
 
@@ -521,19 +518,20 @@ class _FirebaseTestViewState extends State<_FirebaseTestView>
                     colors: _allDone
                         ? [AppColors.success, AppColors.verdeOliva]
                         : _hasError
-                            ? [AppColors.error, AppColors.resaltado]
-                            : [AppColors.bronce, AppColors.verdeOliva],
+                        ? [AppColors.error, AppColors.resaltado]
+                        : [AppColors.bronce, AppColors.verdeOliva],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: (_allDone
-                              ? AppColors.success
-                              : _hasError
+                      color:
+                          (_allDone
+                                  ? AppColors.success
+                                  : _hasError
                                   ? AppColors.error
                                   : AppColors.bronce)
-                          .withValues(alpha: 0.4),
+                              .withValues(alpha: 0.4),
                       blurRadius: 24,
                       spreadRadius: 4,
                     ),
@@ -543,8 +541,8 @@ class _FirebaseTestViewState extends State<_FirebaseTestView>
                   _allDone
                       ? Icons.rocket_launch_rounded
                       : _hasError
-                          ? Icons.cloud_off_rounded
-                          : Icons.storage_rounded,
+                      ? Icons.cloud_off_rounded
+                      : Icons.storage_rounded,
                   size: 52,
                   color: Colors.white,
                 ),
@@ -603,11 +601,13 @@ class _FirebaseTestViewState extends State<_FirebaseTestView>
               child: ElevatedButton(
                 onPressed: _loading ? null : _seedAll,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      _allDone ? AppColors.success : AppColors.verdeOliva,
+                  backgroundColor: _allDone
+                      ? AppColors.success
+                      : AppColors.verdeOliva,
                   foregroundColor: Colors.white,
-                  disabledBackgroundColor:
-                      AppColors.verdeOliva.withValues(alpha: 0.5),
+                  disabledBackgroundColor: AppColors.verdeOliva.withValues(
+                    alpha: 0.5,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
@@ -696,8 +696,11 @@ class _FirebaseTestViewState extends State<_FirebaseTestView>
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.account_tree_rounded,
-                          size: 18, color: AppColors.textoFuerte),
+                      Icon(
+                        Icons.account_tree_rounded,
+                        size: 18,
+                        color: AppColors.textoFuerte,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'Estructura Firestore',
@@ -808,32 +811,32 @@ class _CollectionStatusTile extends StatelessWidget {
               duration: const Duration(milliseconds: 300),
               child: switch (status) {
                 _SeedStatus.idle => Icon(
-                    Icons.circle_outlined,
-                    size: 20,
-                    color: AppColors.border,
-                    key: const ValueKey('idle'),
-                  ),
+                  Icons.circle_outlined,
+                  size: 20,
+                  color: AppColors.border,
+                  key: const ValueKey('idle'),
+                ),
                 _SeedStatus.loading => const SizedBox(
-                    width: 20,
-                    height: 20,
-                    key: ValueKey('loading'),
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.bronce,
-                    ),
+                  width: 20,
+                  height: 20,
+                  key: ValueKey('loading'),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.bronce,
                   ),
+                ),
                 _SeedStatus.done => const Icon(
-                    Icons.check_circle_rounded,
-                    size: 20,
-                    color: AppColors.success,
-                    key: ValueKey('done'),
-                  ),
+                  Icons.check_circle_rounded,
+                  size: 20,
+                  color: AppColors.success,
+                  key: ValueKey('done'),
+                ),
                 _SeedStatus.error => const Icon(
-                    Icons.cancel_rounded,
-                    size: 20,
-                    color: AppColors.error,
-                    key: ValueKey('error'),
-                  ),
+                  Icons.cancel_rounded,
+                  size: 20,
+                  color: AppColors.error,
+                  key: ValueKey('error'),
+                ),
               },
             ),
           ],

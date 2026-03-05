@@ -44,38 +44,38 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyCGkeniLfx1Dw9jfIMvIoJJJEXeFoHXlKc',
-    appId: '1:926105122586:web:6c60f552fdbf9958ee9ea3',
-    messagingSenderId: '926105122586',
-    projectId: 'andicrochett-8d99f',
-    authDomain: 'andicrochett-8d99f.firebaseapp.com',
-    storageBucket: 'andicrochett-8d99f.firebasestorage.app',
-    measurementId: 'G-66WEQ1FH5C',
+    apiKey: 'AIzaSyCTY6hZdZ_lMfArxtmZ4CwAbRCzDhUjxVM',
+    appId: '1:891162012839:web:2c3631d2ff465daa73ff82',
+    messagingSenderId: '891162012839',
+    projectId: 'andicrochett-bcb21',
+    authDomain: 'andicrochett-bcb21.firebaseapp.com',
+    storageBucket: 'andicrochett-bcb21.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBxSOYtaPPgp_rGAdx910NeUa9V0REFL04',
-    appId: '1:926105122586:android:d9f3baab6001837cee9ea3',
-    messagingSenderId: '926105122586',
-    projectId: 'andicrochett-8d99f',
-    storageBucket: 'andicrochett-8d99f.firebasestorage.app',
+    apiKey: 'AIzaSyDWJcbZt356UvHuVuJk5iZUiKQHoUpjOws',
+    appId: '1:891162012839:android:95c6b322ea13af8573ff82',
+    messagingSenderId: '891162012839',
+    projectId: 'andicrochett-bcb21',
+    storageBucket: 'andicrochett-bcb21.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDQyOvjMELJUwrTyvV1MSHGag67Mj7QxIs',
-    appId: '1:926105122586:ios:154b4c2e719fc3b5ee9ea3',
-    messagingSenderId: '926105122586',
-    projectId: 'andicrochett-8d99f',
-    storageBucket: 'andicrochett-8d99f.firebasestorage.app',
+    apiKey: 'AIzaSyBZUk8s_HzYferFc2LI_7nl2Ak7jZUAaGk',
+    appId: '1:891162012839:ios:f46c5b1f69251e6573ff82',
+    messagingSenderId: '891162012839',
+    projectId: 'andicrochett-bcb21',
+    storageBucket: 'andicrochett-bcb21.firebasestorage.app',
     iosBundleId: 'com.example.andicrochett',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyDQyOvjMELJUwrTyvV1MSHGag67Mj7QxIs',
-    appId: '1:926105122586:ios:154b4c2e719fc3b5ee9ea3',
-    messagingSenderId: '926105122586',
-    projectId: 'andicrochett-8d99f',
-    storageBucket: 'andicrochett-8d99f.firebasestorage.app',
+    apiKey: 'AIzaSyBZUk8s_HzYferFc2LI_7nl2Ak7jZUAaGk',
+    appId: '1:891162012839:ios:f46c5b1f69251e6573ff82',
+    messagingSenderId: '891162012839',
+    projectId: 'andicrochett-bcb21',
+    storageBucket: 'andicrochett-bcb21.firebasestorage.app',
     iosBundleId: 'com.example.andicrochett',
   );
+
 }
