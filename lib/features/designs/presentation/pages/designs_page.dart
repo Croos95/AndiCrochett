@@ -143,6 +143,7 @@ class _DesignsPageState extends State<DesignsPage> {
                       designs: filtered,
                       isMobile: isMobile,
                       patternRepo: _patternRepo,
+                      userId: userId ?? '',
                       onTap: _openDetail,
                       onEdit: (d) => _openEditor(existing: d),
                       onDelete: _confirmDelete,
@@ -281,6 +282,7 @@ class _DesignGrid extends StatelessWidget {
     required this.designs,
     required this.isMobile,
     required this.patternRepo,
+    required this.userId,
     required this.onTap,
     required this.onEdit,
     required this.onDelete,
@@ -289,6 +291,7 @@ class _DesignGrid extends StatelessWidget {
   final List<DesignDocument> designs;
   final bool isMobile;
   final PatternRepository patternRepo;
+  final String userId;
   final void Function(DesignDocument) onTap;
   final void Function(DesignDocument) onEdit;
   final void Function(DesignDocument) onDelete;
@@ -308,7 +311,7 @@ class _DesignGrid extends StatelessWidget {
         itemBuilder: (_, i) {
           final d = designs[i];
           return StreamBuilder<int>(
-            stream: patternRepo.countByDesign(d.id),
+            stream: patternRepo.countByDesign(d.id, userId: userId),
             builder: (_, snap) {
               return DesignCard(
                 design: d,

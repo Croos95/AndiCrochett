@@ -5,11 +5,9 @@
 *.swp
 .DS_Store
 .atom/
-.build/
 .buildlog/
 .history
 .svn/
-.swiftpm/
 migrate_working_dir/
 
 # IntelliJ related
@@ -18,69 +16,61 @@ migrate_working_dir/
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
+# The .flutter-plugins and .flutter-plugins-dependencies files contain the list
+# of plugins, so that they can be regenerated at startup.
 .flutter-plugins
 .flutter-plugins-dependencies
-.packages
+
+# Dart build outputs
+build/
+.dart_tool/
+
+# Flutter/Dart/Pub related
 .pub-cache/
 .pub/
-build/
-.metadata
+pubspec.lock
 
-# Generated files
-*.g.dart
-*.freezed.dart
-*.gr.dart
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
 
-# ─── Android ─────────────────────────────────────────────────
-android/.gradle/
-android/local.properties
-android/captures/
-android/key.properties
+# ── Firebase / Secrets ─────────────────────────────────────────────────────
+
+# Firebase options (contains API keys and project IDs)
+lib/firebase_options.dart
+
+# Google services files
 android/app/google-services.json
-**/android/**/GeneratedPluginRegistrant.java
+ios/Runner/GoogleService-Info.plist
+macos/Runner/GoogleService-Info.plist
 
-# ─── iOS / macOS ──────────────────────────────────────────────
-ios/.symlinks/
-ios/Flutter/flutter_export_environment.sh
-ios/Flutter/Generated.xcconfig
-ios/Pods/
-ios/Runner.xcworkspace/xcuserdata/
-macos/Flutter/Flutter-Debug.xcconfig
-macos/Flutter/Flutter-Release.xcconfig
-macos/Flutter/GeneratedPluginRegistrant.swift
+# Firebase emulator data
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+pubsub-debug.log
+storage-debug.log
+database-debug.log
+hosting-debug.log
+functions-debug.log
 
-# ─── Web ──────────────────────────────────────────────────────
-lib/generated_plugin_registrant.dart
+# Firebase local config
+.firebaserc
 
-# ─── Entorno y secretos ───────────────────────────────────────
+# Environment variables
 .env
 .env.*
 !.env.example
-google-services.json
-GoogleService-Info.plist
 
-# ─── IDEs ─────────────────────────────────────────────────────
-.idea/
-.vscode/
-*.iml
-*.ipr
-*.iws
+# ── iOS ────────────────────────────────────────────────────────────────────
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
 
-# ─── Sistema Operativo ────────────────────────────────────────
-.DS_Store
-Thumbs.db
-*.swp
-*.swo
+# ── macOS ──────────────────────────────────────────────────────────────────
+macos/Flutter/GeneratedPluginRegistrant.swift
+macos/Flutter/ephemeral/
 
-# ─── Coverage y Tests ─────────────────────────────────────────
-coverage/
-*.lcov
+# ── Web ────────────────────────────────────────────────────────────────────
+web/firebase-messaging-sw.js

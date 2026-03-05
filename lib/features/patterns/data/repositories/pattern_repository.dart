@@ -87,9 +87,10 @@ class PatternRepository {
   }
 
   /// Stream of the pattern count for a given design.
-  Stream<int> countByDesign(String designId) {
+  Stream<int> countByDesign(String designId, {required String userId}) {
     return _col
         .where('designId', isEqualTo: designId)
+        .where('userId', isEqualTo: userId)
         .snapshots()
         .map((snap) => snap.docs.length);
   }

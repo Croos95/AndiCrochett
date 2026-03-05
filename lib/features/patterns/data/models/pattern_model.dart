@@ -104,8 +104,9 @@ class StitchRegistry {
     "pb": StitchDefinition(1, 1),
     "pma": StitchDefinition(1, 1),
     "pa": StitchDefinition(1, 1),
-    // Cadena: no consume punto estructural de la vuelta anterior ni produce
-    // uno nuevo contable — es puramente notacional/decorativa en el conteo.
+    // Cadena de subida (inicio de vuelta): no produce ni consume puntos.
+    // Cadena estructural (dentro de vuelta, después de un punto): produce 1.
+    // La distinción la hace PatternEngine según el contexto de posición.
     "cad": StitchDefinition(0, 0),
     "aum": StitchDefinition(2, 1),
     "aumtri": StitchDefinition(3, 1),
@@ -189,7 +190,8 @@ class PatternParser {
   static List<Element> _parseInstruction(String instruction) {
     List<Element> elements = [];
 
-    final parts = instruction.split(",");
+    // Split on commas that are NOT inside [...] brackets.
+    final parts = _splitTopLevel(instruction);
 
     for (var part in parts) {
       part = part.trim();
@@ -209,6 +211,29 @@ class PatternParser {
     }
 
     return elements;
+  }
+
+  /// Splits [instruction] on commas that are outside any [...] block.
+  static List<String> _splitTopLevel(String instruction) {
+    final parts = <String>[];
+    int depth = 0;
+    final buf = StringBuffer();
+    for (final ch in instruction.split('')) {
+      if (ch == '[') {
+        depth++;
+        buf.write(ch);
+      } else if (ch == ']') {
+        depth--;
+        buf.write(ch);
+      } else if (ch == ',' && depth == 0) {
+        parts.add(buf.toString().trim());
+        buf.clear();
+      } else {
+        buf.write(ch);
+      }
+    }
+    if (buf.isNotEmpty) parts.add(buf.toString().trim());
+    return parts;
   }
 
   static List<StitchElement> _parseStitches(String input) {
@@ -309,12 +334,23 @@ class PatternEngine {
         }
       }
 
+      // ── Contextual stitch counting ──────────────────────────────────────
+      // 'cad' chains before any structural stitch = lifting chain (produced 0).
+      // 'cad' chains after a structural stitch   = structural space (produced 1).
+      // Inside a block all chains are structural.
+      bool seenStructural = false;
       for (final element in row.elements) {
         if (element is StitchElement) {
-          final def = StitchRegistry.get(element.type);
-
-          produced += def.produced * element.quantity;
-          consumed += def.consumed * element.quantity;
+          if (element.type == 'cad') {
+            if (seenStructural) produced += element.quantity;
+            // consumed is always 0 for cad — no change needed
+          } else {
+            final def = StitchRegistry.get(element.type);
+            final p = def.produced * element.quantity;
+            produced += p;
+            consumed += def.consumed * element.quantity;
+            if (p > 0) seenStructural = true;
+          }
         }
 
         if (element is BlockElement) {
@@ -331,14 +367,19 @@ class PatternEngine {
           int blockConsumed = 0;
 
           for (final stitch in element.stitches) {
-            final def = StitchRegistry.get(stitch.type);
-
-            blockProduced += def.produced * stitch.quantity;
-            blockConsumed += def.consumed * stitch.quantity;
+            if (stitch.type == 'cad') {
+              // Inside a block, chains always produce 1 (structural context).
+              blockProduced += stitch.quantity;
+            } else {
+              final def = StitchRegistry.get(stitch.type);
+              blockProduced += def.produced * stitch.quantity;
+              blockConsumed += def.consumed * stitch.quantity;
+            }
           }
 
           produced += blockProduced * element.multiplier;
           consumed += blockConsumed * element.multiplier;
+          seenStructural = true; // a closed block counts as structural
         }
       }
 

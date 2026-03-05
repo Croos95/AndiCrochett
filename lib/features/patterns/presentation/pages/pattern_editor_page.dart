@@ -64,12 +64,31 @@ class _RD {
   final List<_RE> els;
   final String note;
   _RD(this.nr, this.els, {this.note = ''});
-  int get total => els.fold(0, (s, e) => s + e.produced);
+  int get total => _cadContextualTotal(els);
   int get consumed => els.fold(0, (s, e) => s + e.consumed);
   String toRawLine() {
     final parts = els.map((e) => e.raw).join(', ');
     return 'R$nr: $parts ($total)';
   }
+}
+
+/// Computes the produced total for a row treating 'cad' chains contextually:
+/// - before any structural stitch → 0 (lifting/subida chain).
+/// - after a structural stitch    → +1 each (structural space).
+/// Inside blocks, all chains are structural (always +1).
+int _cadContextualTotal(List<_RE> els) {
+  int total = 0;
+  bool seenStructural = false;
+  for (final e in els) {
+    if (e is _RSE && e.s.type == 'cad') {
+      if (seenStructural) total += e.s.qty;
+    } else {
+      final p = e.produced;
+      total += p;
+      if (p > 0) seenStructural = true;
+    }
+  }
+  return total;
 }
 
 // ── Stitch catalog ───────────────────────────────────────────────────────────
@@ -129,7 +148,7 @@ class _PatternEditorPageState extends State<PatternEditorPage> {
 
   bool get _isEditing => widget.existing != null;
   int get _prevTotal => _rows.isEmpty ? 0 : _rows.last.total;
-  int get _currTotal => _curr.fold(0, (s, e) => s + e.produced);
+  int get _currTotal => _cadContextualTotal(_curr);
   int get _currConsumed => _curr.fold(0, (s, e) => s + e.consumed);
 
   /// Stitches the block consumes per repetition.
