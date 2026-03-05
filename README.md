@@ -1,101 +1,30 @@
-# Estructura del Proyecto
+# Configuración del Proyecto
 
-## 📁 Organización General
+## Firebase
 
-```
-lib/
-├── core/                # Elementos globales reutilizables
-├── services/            # Servicios transversales
-├── utils/               # Funciones auxiliares
-├── widgets/             # Componentes reutilizables globales
-├── features/            # Arquitectura modular por funcionalidad
-├── shared/              # Elementos compartidos entre features
-└── l10n/                # Internacionalización
-```
+Este proyecto usa Firebase. Las credenciales **no están incluidas** en el repositorio por seguridad.
 
-## 🔧 Core
+### Pasos para configurar
 
-Configuraciones centrales del sistema.
+1. Crea un proyecto en [Firebase Console](https://console.firebase.google.com/).
+2. Instala la CLI de FlutterFire:
+   ```sh
+   dart pub global activate flutterfire_cli
+   ```
+3. Configura el proyecto:
+   ```sh
+   flutterfire configure
+   ```
+   Esto generará automáticamente `lib/firebase_options.dart`.
 
-- **routes.dart** → Definición de rutas y navegación
-- **theme.dart** → Tema global (colores, tipografías)
-- **env.dart** → Variables de entorno (API base URL, flags)
-- **constants/** → Colores, textos, tamaños y espaciados
+4. Para Android, descarga `google-services.json` y colócalo en `android/app/`.
+5. Para iOS/macOS, descarga `GoogleService-Info.plist` y colócalo en `ios/Runner/`.
 
-## 🛠️ Services
+### Archivos ignorados por Git
 
-- Autenticación
-- Comunicación con API
-- Persistencia local
-
-## 📚 Utils & Widgets
-
-- Validadores de formularios
-- Helpers generales
-- Botones personalizados, inputs, layout base
-
-## 🎯 Features (Módulos Independientes)
-
-### auth/
-Acceso seguro al sistema
-- Modelos de usuario
-- Repositorio de autenticación
-- Página de login
-
-### dashboard/
-Pantalla principal tras iniciar sesión
-- Resumen de inventario
-- Pedidos próximos
-- Accesos rápidos
-
-### inventory/
-Gestión de productos e insumos
-- Crear, editar, eliminar productos
-- Control de stock
-- Alertas de bajo inventario
-
-### agenda/
-Gestión de pedidos y citas
-- Crear pedidos
-- Asignar fechas
-- Visualización tipo calendario
-
-### patterns/
-Editor de patrones de crochet (módulo principal)
-- Crear y editar patrones
-- Canvas de diseño
-- Guardar y exportar
-
-### landing_connection/ (Opcional)
-- Compartir patrones/productos
-- Conexión con landing pública
-
-## 📦 Estructura de Features
-
-Cada feature sigue esta estructura:
-
-```
-feature/
-├── data/           # Modelos y repositorios
-├── presentation/   # UI y gestor de estado
-└── providers/      # Estado (Provider)
-```
-
-## 🌍 l10n
-
-- Español
-- Inglés (opcional)
-
-## ✅ Tests
-
-```
-test/
-├── unit/           # Lógica y servicios
-└── widget/         # Componentes UI
-```
-
-## 🏗️ Arquitectura
-
-- **Modular**: Separación por features
-- **Escalable**: Cada módulo es independiente
-- **Mantenible**: Separación clara de responsabilidades (Data, Presentation, Core)
+| Archivo | Razón |
+|---|---|
+| `lib/firebase_options.dart` | Contiene API keys |
+| `android/app/google-services.json` | Credenciales Android |
+| `ios/Runner/GoogleService-Info.plist` | Credenciales iOS |
+| `.env` / `.env.*` | Variables de entorno |

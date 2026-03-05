@@ -7,7 +7,7 @@ import 'package:andicrochett/features/designs/data/repositories/design_repositor
 
 // =============================================================================
 //  DesignEditorPage
-//  Create or edit a DesignDocument (name + description only).
+//  Crear o editar un DesignDocument (solo nombre y descripción).
 // =============================================================================
 
 class DesignEditorPage extends StatefulWidget {

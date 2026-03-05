@@ -21,7 +21,13 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+
+  // Checkbox "Recordarme" — UI state únicamente.
+  // Firebase Auth mantiene la sesión activa de forma predeterminada en todas
+  // las plataformas (LOCAL persistence en web, nativa en móvil).
+  // TODO: Si se requiere control explícito, usar FirebaseAuth.instance.setPersistence().
   bool _rememberMe = false;
+
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -141,8 +147,9 @@ class _LoginPageState extends State<LoginPage> {
           ),
           ElevatedButton(
             onPressed: () {
-              if (formKey.currentState!.validate())
+              if (formKey.currentState!.validate()) {
                 Navigator.pop(context, true);
+              }
             },
             child: const Text('Crear'),
           ),

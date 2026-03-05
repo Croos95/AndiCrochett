@@ -475,8 +475,15 @@ class _PatternEditorPageState extends State<PatternEditorPage> {
     return sb.toString().trim();
   }
 
-  /// Validates the currently built rows in real-time.
-  /// Returns an empty list when there are no rows yet.
+  /// Valida en tiempo real las vueltas ya construidas.
+  ///
+  /// Crea una instancia temporal de [PatternDocument] para aprovechar
+  /// su lógica de validación. El caché de [PatternDocument] (late final) es
+  /// por instancia, por lo que se ejecuta un parseo completo en cada setState.
+  ///
+  /// RENDIMIENTO: Para patrones con muchas vueltas, considerar
+  /// debounce/throttle si la validación se vuelve perceptiblemente lenta.
+  /// TODO: Cachear el resultado comparando el rawText anterior con el nuevo.
   List<PatternError> get _liveErrors {
     if (_rows.isEmpty) return const [];
     final tmp = PatternDocument(
@@ -575,10 +582,11 @@ class _PatternEditorPageState extends State<PatternEditorPage> {
         hookSize: _hookCtrl.text.trim(),
         status: _status,
       );
-      if (_isEditing)
+      if (_isEditing) {
         await _repo.update(doc);
-      else
+      } else {
         await _repo.create(doc);
+      }
       if (mounted) {
         _snack(_isEditing ? 'Patr\u00f3n actualizado' : 'Patr\u00f3n creado');
         Navigator.pop(context);
@@ -907,7 +915,7 @@ class _PatternEditorPageState extends State<PatternEditorPage> {
           ),
         ),
         const SizedBox(height: Sizes.md),
-        _Label('Tipo de patr\u00f3n'),
+        _label('Tipo de patr\u00f3n'),
         const SizedBox(height: Sizes.xs),
         Wrap(
           spacing: Sizes.sm,
@@ -924,7 +932,7 @@ class _PatternEditorPageState extends State<PatternEditorPage> {
               .toList(),
         ),
         const SizedBox(height: Sizes.md),
-        _Label('Dificultad'),
+        _label('Dificultad'),
         const SizedBox(height: Sizes.xs),
         Wrap(
           spacing: Sizes.sm,
@@ -959,7 +967,7 @@ class _PatternEditorPageState extends State<PatternEditorPage> {
           ),
         ),
         const SizedBox(height: Sizes.md),
-        _Label('Estado'),
+        _label('Estado'),
         const SizedBox(height: Sizes.xs),
         Wrap(
           spacing: Sizes.sm,
@@ -1202,7 +1210,7 @@ class _PatternEditorPageState extends State<PatternEditorPage> {
                       borderRadius: BorderRadius.circular(Sizes.radiusSm),
                     ),
                     child: Text(
-                      '${_blkConsumedPerRep}/rep · ${_prevTotal - _currConsumed} libres',
+                      '$_blkConsumedPerRep/rep · ${_prevTotal - _currConsumed} libres',
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
@@ -1400,7 +1408,7 @@ class _PatternEditorPageState extends State<PatternEditorPage> {
       Tooltip(
         message: _curr.isEmpty
             ? 'Agrega puntos antes de confirmar'
-            : (!_rows.isEmpty && _currConsumed < _prevTotal)
+            : (_rows.isNotEmpty && _currConsumed < _prevTotal)
             ? 'Faltan ${_prevTotal - _currConsumed} punto(s) por usar'
             : '',
         child: FilledButton.icon(
@@ -1423,7 +1431,7 @@ class _PatternEditorPageState extends State<PatternEditorPage> {
     ],
   );
 
-  Widget _Label(String t) => Text(
+  Widget _label(String t) => Text(
     t,
     style: const TextStyle(
       fontSize: Sizes.fontSizeSm,

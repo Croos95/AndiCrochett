@@ -11,8 +11,8 @@ import 'package:andicrochett/features/patterns/data/repositories/pattern_reposit
 
 // =============================================================================
 //  DesignsPage
-//  Dashboard entry point: shows the user's designs as a grid.
-//  Tapping a card opens DesignDetailPage which lists that design's patterns.
+//  Punto de entrada del dashboard: muestra los diseños del usuario en una cuadrícula.
+//  Al tocar una tarjeta se abre DesignDetailPage con la lista de patrones del diseño.
 // =============================================================================
 
 class DesignsPage extends StatefulWidget {
@@ -77,8 +77,9 @@ class _DesignsPageState extends State<DesignsPage> {
       ),
     );
     if (confirmed == true && mounted) {
-      // Delete all patterns in this design first, then the design itself.
-      await _patternRepo.deleteByDesign(design.id);
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      // Primero se eliminan todos los patrones del diseño y luego el diseño mismo.
+      await _patternRepo.deleteByDesign(design.id, userId: uid);
       await _designRepo.delete(design.id);
       if (mounted) {
         ScaffoldMessenger.of(
@@ -91,9 +92,12 @@ class _DesignsPageState extends State<DesignsPage> {
   @override
   Widget build(BuildContext context) {
     final userId = FirebaseAuth.instance.currentUser?.uid;
+    // Solo cargar diseños del usuario autenticado.
+    // Si no hay sesión activa se emite una lista vacía — watchAll() de todas
+    // formas sería rechazado por las reglas de seguridad de Firestore.
     final stream = userId != null
         ? _designRepo.watchByUser(userId)
-        : _designRepo.watchAll();
+        : Stream.value(const <DesignDocument>[]);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -138,7 +142,7 @@ class _DesignsPageState extends State<DesignsPage> {
                       return const _EmptyView();
                     }
 
-                    // Fetch pattern counts for each design in a FutureBuilder.
+                    // Stream del conteo de patrones por diseño mediante un StreamBuilder anidado.
                     return _DesignGrid(
                       designs: filtered,
                       isMobile: isMobile,
@@ -275,7 +279,7 @@ class _DesignsPageState extends State<DesignsPage> {
   }
 }
 
-// ── Grid ──────────────────────────────────────────────────────────────────────
+// ── Cuadrícula ───────────────────────────────────────────────────────────────
 
 class _DesignGrid extends StatelessWidget {
   const _DesignGrid({
@@ -298,6 +302,13 @@ class _DesignGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    /// Stream del número de patrones de un diseño mediante StreamBuilder anidado.
+    ///
+    /// ARQUITECTURA: Un StreamBuilder por tarjeta crea N listeners en Firestore
+    /// (uno por diseño). Si el usuario tiene muchos diseños, esto puede generar
+    /// carga innecesaria.
+    /// TODO: Optimizar con una sola consulta agregada cuando la API de Firestore
+    /// soporte conteos atómicos (actualmente disponible via REST pero no en SDK Flutter).
     return Padding(
       padding: EdgeInsets.all(isMobile ? Sizes.md : Sizes.lg),
       child: GridView.builder(
@@ -328,7 +339,7 @@ class _DesignGrid extends StatelessWidget {
   }
 }
 
-// ── Empty state ────────────────────────────────────────────────────────────────
+// ── Estado vacío ─────────────────────────────────────────────────────────────
 
 class _EmptyView extends StatelessWidget {
   const _EmptyView();

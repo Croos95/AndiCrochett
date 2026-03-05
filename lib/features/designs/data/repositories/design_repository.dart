@@ -3,7 +3,7 @@ import 'package:andicrochett/features/designs/data/models/design_model.dart';
 
 // =============================================================================
 //  DesignRepository
-//  Single source of truth for Firestore CRUD on the 'designs' collection.
+//  Única fuente de verdad para CRUD en Firestore sobre la colección 'designs'.
 // =============================================================================
 
 class DesignRepository {
@@ -15,7 +15,7 @@ class DesignRepository {
   CollectionReference<Map<String, dynamic>> get _col =>
       _db.collection('designs');
 
-  // ── Read ──────────────────────────────────────────────────────────────────
+  // ── Lectura ───────────────────────────────────────────────────────────────
 
   Stream<List<DesignDocument>> watchAll() => _col
       .orderBy('createdAt', descending: true)
@@ -33,7 +33,7 @@ class DesignRepository {
       .snapshots()
       .map((s) => s.exists ? DesignDocument.fromDoc(s) : null);
 
-  // ── Write ─────────────────────────────────────────────────────────────────
+  // ── Escritura ─────────────────────────────────────────────────────────────
 
   Future<String> create(DesignDocument design) async {
     final now = DateTime.now();

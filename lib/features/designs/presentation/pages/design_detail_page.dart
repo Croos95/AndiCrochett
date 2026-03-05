@@ -13,7 +13,7 @@ import 'package:andicrochett/features/patterns/presentation/widgets/pattern_card
 
 // =============================================================================
 //  DesignDetailPage
-//  Shows a design's information and the list of patterns that belong to it.
+//  Muestra la información de un diseño y la lista de patrones que le pertenecen.
 // =============================================================================
 
 class DesignDetailPage extends StatefulWidget {
@@ -77,6 +77,9 @@ class _DesignDetailPageState extends State<DesignDetailPage> {
     );
     if (confirmed == true && mounted) {
       await _patternRepo.delete(pattern.id);
+      // Verificar mounted después del await — el widget pudo desmontarse
+      // mientras esperaba la respuesta de Firestore.
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Patrón eliminado')));

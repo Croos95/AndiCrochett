@@ -2,9 +2,9 @@
 import 'package:flutter/foundation.dart';
 
 // =============================================================================
-//  DesignDocument — Firestore DTO for a crochet design.
-//  A design groups one or more CrochetPatterns together.
-//  Firestore collection: 'designs'
+//  DesignDocument — DTO de Firestore para un diseño de crochet.
+//  Un diseño agrupa uno o más patrones de crochet.
+//  Colección de Firestore: 'designs'
 // =============================================================================
 
 @immutable
@@ -20,17 +20,17 @@ class DesignDocument {
 
   final String id;
 
-  /// Display name of the design, e.g. "Amigurumi de osito".
+  /// Nombre visible del diseño, p.ej. "Amigurumi de osito".
   final String name;
 
-  /// Optional free-text description of the design.
+  /// Descripción libre y opcional del diseño.
   final String description;
 
   final String userId;
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  // ── Serialization ─────────────────────────────────────────────────────────
+  // ── Serialización ─────────────────────────────────────────────────────────
 
   Map<String, dynamic> toMap() => {
     'name': name,

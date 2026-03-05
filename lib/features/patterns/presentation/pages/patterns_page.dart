@@ -10,6 +10,7 @@ import 'package:andicrochett/features/patterns/presentation/widgets/pattern_card
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  PatternsPage
+//  Pantalla principal de patrones: muestra todos los patrones del usuario.
 // ─────────────────────────────────────────────────────────────────────────────
 
 class PatternsPage extends StatefulWidget {
@@ -102,9 +103,12 @@ class _PatternsPageState extends State<PatternsPage> {
   @override
   Widget build(BuildContext context) {
     final userId = FirebaseAuth.instance.currentUser?.uid;
+    // Solo cargar patrones del usuario autenticado.
+    // Si no hay sesión activa se emite una lista vacía — watchAll() de todas
+    // formas sería rechazado por las reglas de seguridad de Firestore.
     final stream = userId != null
         ? _repo.watchByUser(userId)
-        : _repo.watchAll();
+        : Stream.value(const <PatternDocument>[]);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -302,7 +306,7 @@ class _PatternsPageState extends State<PatternsPage> {
   }
 }
 
-// ── PatternGrid ───────────────────────────────────────────────────────────────
+// ── Cuadrícula de patrones ───────────────────────────────────────────────────
 
 class _PatternGrid extends StatelessWidget {
   const _PatternGrid({
@@ -345,7 +349,7 @@ class _PatternGrid extends StatelessWidget {
   }
 }
 
-// ── Empty state ───────────────────────────────────────────────────────────────
+// ── Estado vacío ─────────────────────────────────────────────────────────────
 
 class _EmptyView extends StatelessWidget {
   const _EmptyView();
@@ -384,7 +388,7 @@ class _EmptyView extends StatelessWidget {
   }
 }
 
-// ── FilterChip ────────────────────────────────────────────────────────────────
+// ── Chip de filtro ───────────────────────────────────────────────────────────
 
 class _FilterChip extends StatelessWidget {
   const _FilterChip({

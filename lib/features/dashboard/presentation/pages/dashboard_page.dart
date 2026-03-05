@@ -3,10 +3,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:andicrochett/core/constants/colors.dart';
 import 'package:andicrochett/core/constants/sizes.dart';
-import 'package:andicrochett/features/dashboard/presentation/widgets/sidebar_menu.dart';
+import 'package:andicrochett/features/agenda/presentation/pages/agenda_page.dart';
 import 'package:andicrochett/features/dashboard/presentation/widgets/dashboard_footer.dart';
-import 'package:andicrochett/features/inventory/presentation/pages/inventory_page.dart';
+import 'package:andicrochett/features/dashboard/presentation/widgets/sidebar_menu.dart';
 import 'package:andicrochett/features/designs/presentation/pages/designs_page.dart';
+import 'package:andicrochett/features/inventory/presentation/pages/inventory_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -24,21 +25,26 @@ class _DashboardPageState extends State<DashboardPage> {
     });
   }
 
+  /// Construye el widget de contenido según la ruta activa del sidebar.
+  ///
+  /// Notas de cada ruta:
+  ///   'home'      → Resumen estádtico; TODO: conectar a datos reales.
+  ///   'inventory' → Pantalla de inventario (UI estática, pendiente Firestore).
+  ///   'agenda'    → Pantalla de agenda / pedidos (pendiente implementación).
+  ///   'designs'   → Pantalla de diseños con Firestore activo.
+  ///   'profile'   → Herramienta de desarrollo: siembra datos en Firestore.
+  ///               PENDIENTE reemplazar con ProfilePage en producción.
   Widget _buildContent() {
-    switch (_selectedRoute) {
-      case 'home':
-        return const _HomeView();
-      case 'inventory':
-        return const InventoryPage();
-      case 'agenda':
-        return const Center(child: Text('Agenda'));
-      case 'designs':
-        return const DesignsPage();
-      case 'profile':
-        return const _FirebaseTestView();
-      default:
-        return const _HomeView();
-    }
+    return switch (_selectedRoute) {
+      'home' => const _HomeView(),
+      'inventory' => const InventoryPage(),
+      'agenda' => const AgendaPage(),
+      'designs' => const DesignsPage(),
+      // DESARROLLO: Ruta 'perfil' usa la herramienta de siembra de datos.
+      // TODO: Crear ProfilePage y reemplazar _FirebaseTestView aquí.
+      'profile' => const _FirebaseTestView(),
+      _ => const _HomeView(),
+    };
   }
 
   @override

@@ -276,7 +276,9 @@ class PatternEngine {
 
           if (element is StitchElement) checkType(element.type);
           if (element is BlockElement) {
-            for (final s in element.stitches) checkType(s.type);
+            for (final s in element.stitches) {
+              checkType(s.type);
+            }
           }
         }
       }
@@ -445,8 +447,8 @@ class PatternDocument {
   final PatternStatus status;
 
   /// Multi-line text: each non-empty line is one row instruction.
-  /// Format: R<n>: <instructions> (<total>)
-  /// Example: "R1: AM, 6pb (6)"
+  /// Format: `R<n>: <instructions> (<total>)`
+  /// Example: `R1: AM, 6pb (6)`
   final String rawText;
 
   final String userId;
@@ -511,8 +513,12 @@ class PatternDocument {
     return [...parseErrors, ...PatternEngine.validate(pattern)];
   }
 
-  int get rowCount =>
-      rawText.split('\n').where((l) => l.trim().isNotEmpty).length;
+  /// Número de vueltas reales del patrón.
+  /// Excluye líneas vacías y líneas de comentario (#nota: ...).
+  int get rowCount => rawText
+      .split('\n')
+      .where((l) => l.trim().isNotEmpty && !l.trim().startsWith('#'))
+      .length;
 
   // ── Serialization ─────────────────────────────────────────────────────────
 

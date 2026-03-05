@@ -5,7 +5,7 @@ import 'package:andicrochett/features/designs/data/models/design_model.dart';
 
 // =============================================================================
 //  DesignCard
-//  Summary card for a DesignDocument in the designs grid.
+//  Tarjeta resumen de un DesignDocument en la cuadrícula de diseños.
 // =============================================================================
 
 class DesignCard extends StatelessWidget {
@@ -49,7 +49,7 @@ class DesignCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Accent bar ──────────────────────────────────────────────
+              // ── Barra de acento ─────────────────────────────────────────
               Container(
                 height: 5,
                 decoration: const BoxDecoration(

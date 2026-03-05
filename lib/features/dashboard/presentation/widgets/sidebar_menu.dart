@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:andicrochett/core/constants/colors.dart';
 import 'package:andicrochett/core/constants/sizes.dart';
-import 'package:andicrochett/core/config/routes.dart';
+import 'package:andicrochett/features/auth/presentation/providers/auth_provider.dart';
 
 class SidebarMenu extends StatefulWidget {
   const SidebarMenu({
@@ -115,7 +116,10 @@ class _SidebarMenuState extends State<SidebarMenu> {
               ),
             ),
             const Divider(color: AppColors.border),
-            // Logout
+            // Botón de cierre de sesión
+            // Llama a AuthProvider.signOut() para que Firebase.Auth() invalide
+            // la sesión y _AuthGate redirija automáticamente a LoginPage.
+            // NO se navega manualmente — _AuthGate escucha el stream de auth.
             _MenuItem(
               icon: Icons.logout,
               label: 'Cerrar Sesión',
@@ -123,7 +127,7 @@ class _SidebarMenuState extends State<SidebarMenu> {
               isSelected: false,
               isCollapsed: _isCollapsed,
               onTap: () {
-                Navigator.pushReplacementNamed(context, AppRoutes.login);
+                context.read<AuthProvider>().signOut();
               },
             ),
             const SizedBox(height: Sizes.md),

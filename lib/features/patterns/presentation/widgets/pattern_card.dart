@@ -5,7 +5,7 @@ import 'package:andicrochett/features/patterns/data/models/pattern_model.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  PatternCard
-//  Summary card for a PatternDocument in the list view.
+//  Tarjeta resumen de un PatternDocument en la vista de lista.
 // ─────────────────────────────────────────────────────────────────────────────
 
 class PatternCard extends StatelessWidget {
@@ -130,7 +130,7 @@ class PatternCard extends StatelessWidget {
   }
 }
 
-// ── Sub-widgets ───────────────────────────────────────────────────────────────
+// ── Sub-widgets ──────────────────────────────────────────────────────────────
 
 class _TypeBadge extends StatelessWidget {
   const _TypeBadge({required this.label, required this.color});

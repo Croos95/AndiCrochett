@@ -7,10 +7,11 @@ import 'package:andicrochett/features/patterns/presentation/pages/pattern_editor
 
 // =============================================================================
 //  PatternDetailPage
-//  Read-only view of a single CrochetPattern.
-//  – Shows parsed rows with calculated vs declared stitch total.
-//  – Shows PatternEngine validation errors at the top if any.
-//  – AppBar edit button opens PatternEditorPage(existing: doc).
+//  Vista de solo lectura de un PatternDocument.
+//  – Muestra el texto de instrucción de cada vuelta con un badge de número.
+//  – Muestra los errores de validación del PatternEngine en la parte superior.
+//  – El botón de edición en el AppBar abre PatternEditorPage(existing: doc).
+//  – Muestra una tarjeta de texto crudo cuando el patrón no puede parsearse.
 // =============================================================================
 
 class PatternDetailPage extends StatefulWidget {
@@ -23,8 +24,8 @@ class PatternDetailPage extends StatefulWidget {
 }
 
 class _PatternDetailPageState extends State<PatternDetailPage> {
-  // Repository is stored as a field so it is not re-instantiated on
-  // every rebuild (StatelessWidget would create a new instance each time).
+  // El repositorio se guarda como campo para no reinstanciarlo en cada
+  // reconstrucción del widget (StatelessWidget crearía una nueva instancia cada vez).
   final _repo = PatternRepository();
 
   @override
@@ -56,7 +57,8 @@ class _PatternDetailContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Both calls hit the late final cache — no re-parsing on rebuilds.
+    // tryParse() y validate() usan cachés late final en PatternDocument,
+    // por lo que llamar a ambos aquí cuesta un parseo por emisión del stream, no dos.
     final pattern = doc.tryParse();
     final errors = doc.validate();
     final allLines = doc.rawText
@@ -64,15 +66,15 @@ class _PatternDetailContent extends StatelessWidget {
         .map((l) => l.trim())
         .where((l) => l.isNotEmpty)
         .toList();
-    // Separate row lines from note lines for display
+    // Separar líneas de vueltas de líneas de notas para la visualización
     final rawLines = allLines.where((l) => !l.startsWith('#')).toList();
-    // Build row-number → note map
+    // Construye el mapa número-de-vuelta → nota
     final notes = <int, String>{};
     for (int i = 0; i < allLines.length; i++) {
       if (allLines[i].startsWith('#nota:') && i > 0) {
         // Find the preceding row line
         final note = allLines[i].substring(6).trim();
-        // attach to the row before this note line
+        // Asocia la nota a la vuelta que precede a esta línea
         for (int j = i - 1; j >= 0; j--) {
           if (!allLines[j].startsWith('#')) {
             try {
@@ -272,8 +274,8 @@ class _RowCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mismatch = row.calculatedTotal != row.declaredTotal;
-
+    // Strip "R1: " prefix — el número ya aparece en el badge
+    final displayLine = rawLine.replaceFirst(RegExp(r'^R\d+:\s*'), '');
     return Container(
       margin: const EdgeInsets.only(bottom: Sizes.sm),
       decoration: BoxDecoration(
@@ -290,7 +292,7 @@ class _RowCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(Sizes.md),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Container(
               width: 36,
@@ -313,12 +315,15 @@ class _RowCard extends StatelessWidget {
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    rawLine,
+                    displayLine,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: Sizes.fontSizeSm,
+                      fontFamily: 'Lora',
+                      fontSize: Sizes.fontSizeLg,
                       color: AppColors.texto,
                     ),
                   ),
@@ -333,22 +338,6 @@ class _RowCard extends StatelessWidget {
                       ),
                     ),
                   ],
-                  const SizedBox(height: Sizes.xs),
-                  Row(
-                    children: [
-                      _TotalChip(
-                        label: 'Calculado',
-                        value: row.calculatedTotal,
-                        ok: !mismatch,
-                      ),
-                      const SizedBox(width: Sizes.sm),
-                      _TotalChip(
-                        label: 'Declarado',
-                        value: row.declaredTotal,
-                        ok: !mismatch,
-                      ),
-                    ],
-                  ),
                 ],
               ),
             ),
@@ -391,9 +380,10 @@ class _RawTextCard extends StatelessWidget {
           Text(
             rawText,
             style: const TextStyle(
-              fontFamily: 'monospace',
+              fontFamily: 'Lora',
               fontSize: Sizes.fontSizeSm,
-              color: AppColors.texto,
+              color: AppColors.textoFuerte,
+              fontWeight: FontWeight.w700,
               height: 1.7,
             ),
           ),
@@ -491,39 +481,6 @@ class _MetaChip extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _TotalChip extends StatelessWidget {
-  const _TotalChip({
-    required this.label,
-    required this.value,
-    required this.ok,
-  });
-
-  final String label;
-  final int value;
-  final bool ok;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = ok ? AppColors.success : AppColors.error;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Text(
-        '$label: $value',
-        style: TextStyle(
-          fontSize: 11,
-          color: color,
-          fontWeight: FontWeight.w600,
-        ),
       ),
     );
   }
