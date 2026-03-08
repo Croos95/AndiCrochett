@@ -1,6 +1,10 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:andicrochett/core/constants/colors.dart';
 import 'package:andicrochett/core/constants/sizes.dart';
+import 'package:andicrochett/features/inventory/data/models/product_model.dart';
+import 'package:andicrochett/features/inventory/data/repositories/inventory_repository.dart';
+import 'package:andicrochett/features/inventory/presentation/widgets/product_form.dart';
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key});
@@ -11,11 +15,65 @@ class InventoryPage extends StatefulWidget {
 
 class _InventoryPageState extends State<InventoryPage> {
   final TextEditingController _searchController = TextEditingController();
+  final InventoryRepository _repo = InventoryRepository();
+  String _searchQuery = '';
+
+  String get _userId => FirebaseAuth.instance.currentUser?.uid ?? '';
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _showProductForm({ProductModel? existing}) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Sizes.radiusXl),
+        ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: ProductForm(
+            existing: existing,
+            onSave: (product) async {
+              if (existing != null) {
+                await _repo.update(product.copyWith(
+                  id: existing.id,
+                  userId: existing.userId,
+                ));
+              } else {
+                await _repo.create(product.copyWith(userId: _userId));
+              }
+              if (mounted) Navigator.pop(context);
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(ProductModel product) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Eliminar producto'),
+        content: Text('Â¿Eliminar "${product.name}"? Esta acciÃ³n no se puede deshacer.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await _repo.delete(product.id);
   }
 
   @override
@@ -28,31 +86,69 @@ class _InventoryPageState extends State<InventoryPage> {
           color: AppColors.background,
           child: Column(
             children: [
-              _buildHeader(),
-              _buildStatsBar(),
+              _buildHeader(isMobile),
               Expanded(
-                child: Padding(
-                  padding: EdgeInsets.all(isMobile ? Sizes.md : Sizes.lg),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSectionHeader(),
-                      const SizedBox(height: Sizes.md),
-                      Expanded(
-                        child: isMobile
-                            ? SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: SizedBox(
-                                  width: 860,
-                                  child: _buildInventoryTable(),
+                child: StreamBuilder<List<ProductModel>>(
+                  stream: _repo.watchByUser(_userId),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    final allProducts = snapshot.data ?? [];
+                    final products = _searchQuery.isEmpty
+                        ? allProducts
+                        : allProducts
+                            .where((p) => p.name
+                                .toLowerCase()
+                                .contains(_searchQuery.toLowerCase()))
+                            .toList();
+
+                    final totalStock = allProducts.fold<int>(
+                        0, (s, p) => s + p.currentStock);
+                    final lowCount = allProducts
+                        .where((p) =>
+                            p.status == ProductStatus.lowStock ||
+                            p.status == ProductStatus.outOfStock)
+                        .length;
+
+                    return Column(
+                      children: [
+                        _buildStatsBar(
+                          totalStock: totalStock,
+                          lowCount: lowCount,
+                          isMobile: isMobile,
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: EdgeInsets.all(
+                                isMobile ? Sizes.md : Sizes.lg),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildSectionHeader(),
+                                const SizedBox(height: Sizes.md),
+                                Expanded(
+                                  child: products.isEmpty
+                                      ? _buildEmptyState()
+                                      : isMobile
+                                          ? SingleChildScrollView(
+                                              scrollDirection: Axis.horizontal,
+                                              child: SizedBox(
+                                                width: 860,
+                                                child: _buildInventoryTable(
+                                                    products),
+                                              ),
+                                            )
+                                          : _buildInventoryTable(products),
                                 ),
-                              )
-                            : _buildInventoryTable(),
-                      ),
-                      const SizedBox(height: Sizes.md),
-                      _buildViewMoreButton(),
-                    ],
-                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ],
@@ -62,76 +158,218 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  Widget _buildHeader() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isMobile = constraints.maxWidth < 600;
-
-        if (isMobile) {
-          return Container(
-            padding: const EdgeInsets.all(Sizes.md),
-            decoration: const BoxDecoration(
-              color: AppColors.background,
-              border: Border(
-                bottom: BorderSide(color: AppColors.lino, width: 1),
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.inventory_2_outlined, size: 64, color: AppColors.texto),
+          const SizedBox(height: Sizes.md),
+          Text(
+            _searchQuery.isEmpty
+                ? 'No hay productos aÃºn'
+                : 'No se encontraron resultados',
+            style: TextStyle(
+              fontSize: Sizes.fontSizeLg,
+              color: AppColors.texto,
+            ),
+          ),
+          if (_searchQuery.isEmpty) ...[
+            const SizedBox(height: Sizes.md),
+            ElevatedButton.icon(
+              onPressed: () => _showProductForm(),
+              icon: const Icon(Icons.add),
+              label: const Text('Agregar producto'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.resaltado,
+                foregroundColor: Colors.white,
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(bool isMobile) {
+    if (isMobile) {
+      return Container(
+        padding: const EdgeInsets.all(Sizes.md),
+        decoration: const BoxDecoration(
+          color: AppColors.background,
+          border: Border(
+            bottom: BorderSide(color: AppColors.lino, width: 1),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Inventario General',
+              style: TextStyle(
+                fontSize: Sizes.fontSizeXxl,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textoFuerte,
+              ),
+            ),
+            const SizedBox(height: Sizes.sm),
+            TextField(
+              controller: _searchController,
+              onChanged: (v) => setState(() => _searchQuery = v),
+              decoration: InputDecoration(
+                hintText: 'Buscar...',
+                hintStyle: TextStyle(
+                  fontSize: Sizes.fontSizeSm,
+                  color: AppColors.texto,
+                ),
+                prefixIcon: Icon(
+                  Icons.search,
+                  size: 18,
+                  color: AppColors.texto,
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: const BorderSide(color: AppColors.lino),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: const BorderSide(color: AppColors.lino),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: const BorderSide(color: AppColors.verdeOliva),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: Sizes.md,
+                  vertical: Sizes.sm,
+                ),
+                isDense: true,
+              ),
+              style: const TextStyle(fontSize: Sizes.fontSizeSm),
+            ),
+            const SizedBox(height: Sizes.sm),
+            SizedBox(
+              height: 36,
+              child: ElevatedButton(
+                onPressed: () => _showProductForm(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.resaltado,
+                  foregroundColor: AppColors.background,
+                  padding: const EdgeInsets.symmetric(horizontal: Sizes.md),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add, size: 16),
+                    SizedBox(width: 6),
+                    Text(
+                      'Agregar',
+                      style: TextStyle(
+                        fontSize: Sizes.fontSizeSm,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 64),
+      padding: const EdgeInsets.symmetric(horizontal: Sizes.lg),
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        border: Border(bottom: BorderSide(color: AppColors.lino, width: 1)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Row(
               children: [
-                const Text(
-                  'Inventario General',
-                  style: TextStyle(
-                    fontSize: Sizes.fontSizeXxl,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textoFuerte,
+                const Flexible(
+                  child: Text(
+                    'Inventario General',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: Sizes.fontSizeXxl,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textoFuerte,
+                      letterSpacing: 1.5,
+                    ),
                   ),
                 ),
-                const SizedBox(height: Sizes.sm),
-                TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Buscar...',
-                    hintStyle: TextStyle(
-                      fontSize: Sizes.fontSizeSm,
-                      color: AppColors.texto,
-                    ),
-                    prefixIcon: Icon(
-                      Icons.search,
-                      size: 18,
-                      color: AppColors.texto,
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: const BorderSide(color: AppColors.lino),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: const BorderSide(color: AppColors.lino),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: const BorderSide(color: AppColors.verdeOliva),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: Sizes.md,
-                      vertical: Sizes.sm,
-                    ),
-                    isDense: true,
-                  ),
-                  style: const TextStyle(fontSize: Sizes.fontSizeSm),
-                ),
-                const SizedBox(height: Sizes.sm),
+                const SizedBox(width: Sizes.lg),
                 SizedBox(
+                  width: 350,
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (v) => setState(() => _searchQuery = v),
+                    decoration: InputDecoration(
+                      hintText: 'Buscar...',
+                      hintStyle: TextStyle(
+                        fontSize: Sizes.fontSizeSm,
+                        color: AppColors.texto,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.search,
+                        size: 18,
+                        color: AppColors.texto,
+                      ),
+                      filled: true,
+                      fillColor: AppColors.background,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: const BorderSide(color: AppColors.lino),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: const BorderSide(color: AppColors.lino),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: const BorderSide(
+                          color: AppColors.verdeOliva,
+                        ),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: Sizes.md,
+                        vertical: Sizes.sm,
+                      ),
+                      isDense: true,
+                    ),
+                    style: const TextStyle(fontSize: Sizes.fontSizeSm),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: Sizes.md),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 150),
+                child: SizedBox(
                   height: 36,
                   child: ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () => _showProductForm(),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.resaltado,
                       foregroundColor: AppColors.background,
-                      padding: const EdgeInsets.symmetric(horizontal: Sizes.md),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: Sizes.md,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
@@ -142,183 +380,66 @@ class _InventoryPageState extends State<InventoryPage> {
                       children: [
                         Icon(Icons.add, size: 16),
                         SizedBox(width: 6),
-                        Text(
-                          'Agregar',
-                          style: TextStyle(
-                            fontSize: Sizes.fontSizeSm,
-                            fontWeight: FontWeight.bold,
+                        Flexible(
+                          child: Text(
+                            'Agregar',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: Sizes.fontSizeSm,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
-              ],
-            ),
-          );
-        }
-
-        return Container(
-          constraints: const BoxConstraints(minHeight: 64),
-          padding: const EdgeInsets.symmetric(horizontal: Sizes.lg),
-          decoration: const BoxDecoration(
-            color: AppColors.background,
-            border: Border(bottom: BorderSide(color: AppColors.lino, width: 1)),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    const Flexible(
-                      child: Text(
-                        'Inventario General',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: Sizes.fontSizeXxl,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textoFuerte,
-                          letterSpacing: 1.5,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: Sizes.lg),
-                    SizedBox(
-                      width: 350,
-                      child: TextField(
-                        controller: _searchController,
-                        decoration: InputDecoration(
-                          hintText: 'Buscar...',
-                          hintStyle: TextStyle(
-                            fontSize: Sizes.fontSizeSm,
-                            color: AppColors.texto,
-                          ),
-                          prefixIcon: Icon(
-                            Icons.search,
-                            size: 18,
-                            color: AppColors.texto,
-                          ),
-                          filled: true,
-                          fillColor: AppColors.background,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            borderSide: const BorderSide(color: AppColors.lino),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            borderSide: const BorderSide(color: AppColors.lino),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            borderSide: const BorderSide(
-                              color: AppColors.verdeOliva,
-                            ),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: Sizes.md,
-                            vertical: Sizes.sm,
-                          ),
-                          isDense: true,
-                        ),
-                        style: const TextStyle(fontSize: Sizes.fontSizeSm),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: Sizes.md),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 150),
-                    child: SizedBox(
-                      height: 36,
-                      child: ElevatedButton(
-                        onPressed: () {},
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.resaltado,
-                          foregroundColor: AppColors.background,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: Sizes.md,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.add, size: 16),
-                            SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                'Agregar',
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: Sizes.fontSizeSm,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
               ),
             ],
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 
-  Widget _buildStatsBar() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isMobile = constraints.maxWidth < 600;
-
-        return Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Sizes.lg,
-            vertical: Sizes.sm,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.2),
-            border: const Border(
-              bottom: BorderSide(color: AppColors.lino, width: 1),
-            ),
-          ),
-          child: Wrap(
-            spacing: Sizes.lg,
-            runSpacing: Sizes.sm,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              _buildStatItem(
-                'TOTAL MADEJAS:',
-                '1,250',
-                AppColors.verdeOliva,
-                trend: '+5%',
-              ),
-              if (!isMobile) _buildStatDivider(),
-              _buildStatItem('POR AGOTAR:', '12', AppColors.error),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildStatItem(
-    String label,
-    String value,
-    Color valueColor, {
-    String? trend,
+  Widget _buildStatsBar({
+    required int totalStock,
+    required int lowCount,
+    required bool isMobile,
   }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: Sizes.lg,
+        vertical: Sizes.sm,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.2),
+        border: const Border(
+          bottom: BorderSide(color: AppColors.lino, width: 1),
+        ),
+      ),
+      child: Wrap(
+        spacing: Sizes.lg,
+        runSpacing: Sizes.sm,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          _buildStatItem(
+            'TOTAL STOCK:',
+            totalStock.toString(),
+            AppColors.verdeOliva,
+          ),
+          if (!isMobile) _buildStatDivider(),
+          _buildStatItem(
+            'POR AGOTAR:',
+            lowCount.toString(),
+            AppColors.error,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, Color valueColor) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -340,13 +461,6 @@ class _InventoryPageState extends State<InventoryPage> {
             color: valueColor,
           ),
         ),
-        if (trend != null) ...[
-          const SizedBox(width: 4),
-          Text(
-            trend,
-            style: const TextStyle(fontSize: 9, color: AppColors.success),
-          ),
-        ],
       ],
     );
   }
@@ -374,9 +488,7 @@ class _InventoryPageState extends State<InventoryPage> {
           ),
         ),
         IconButton(
-          onPressed: () {
-            // TODO: Filtros
-          },
+          onPressed: () {},
           icon: const Icon(Icons.filter_alt_outlined),
           iconSize: 20,
           color: AppColors.texto,
@@ -386,7 +498,7 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  Widget _buildInventoryTable() {
+  Widget _buildInventoryTable(List<ProductModel> products) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -421,7 +533,7 @@ class _InventoryPageState extends State<InventoryPage> {
                 child: const Row(
                   children: [
                     Expanded(flex: 3, child: _TableHeaderCell('PRODUCTO')),
-                    Expanded(flex: 1, child: _TableHeaderCell('CATEGORÍA')),
+                    Expanded(flex: 1, child: _TableHeaderCell('CATEGORÃA')),
                     Expanded(flex: 2, child: _TableHeaderCell('COLOR')),
                     Expanded(flex: 1, child: _TableHeaderCell('PESO')),
                     Expanded(flex: 2, child: _TableHeaderCell('ESTADO')),
@@ -430,59 +542,8 @@ class _InventoryPageState extends State<InventoryPage> {
                   ],
                 ),
               ),
-              // Table rows
-              _buildTableRow(
-                image:
-                    'https://lh3.googleusercontent.com/aida-public/AB6AXuDbXkUeLoUTwMXlIqn1xubaFp519aSrOv5jVZWZvgg0TUgEm6eRbTGMrsWDnOYTaspqBZtPlBhyz8vHz_g6FnIAW0oCu3oE2dxniH4kPbb-mvblw-pewpZaR15TKlAk2SsMGN3Lbzxbda5YSD75edVBLKmtxs3vN2lRNvrMGvJT-48d6KF-PZijHddPh94hDqfZOIam67ND-geIRcn2ogkAa_MrI1T3dKk1uLZfZw5yP4ktbEfSbrpfB-y2JHWU4PTFUfEWkh-8sTg',
-                name: 'Algodón Premium',
-                category: 'Madeja',
-                color: const Color(0xFFE9967A),
-                colorHex: '#E9967A',
-                weight: '100g',
-                status: 'OK',
-                statusColor: AppColors.success,
-                currentStock: 45,
-                totalStock: 50,
-              ),
-              _buildTableRow(
-                image:
-                    'https://lh3.googleusercontent.com/aida-public/AB6AXuDw0X8AB0tGQPGNS_5rmSGARVF6onezuefnnohzFKKgRoB11QWyKqSt7LZXnAtNP6IJnEBMaQCaNA59tRuhMYJZkilDbI4XH-yOOWlc4i1l7V7FsqepIWP8fTnyN4h69o6PFYNFQsjrwH5216jDNL02fK6fq6xK-Gh6Rxx_ftazZSTD21gfy3LKaiA3m8QjKZf07IuaBj4JslyDVXepuD2xi6j4LnS5X4vvOhcySjd9ljWyW-D_REgsP6g6pCgXvr7y4GsZ47OJqGs',
-                name: 'Lana Merino',
-                category: 'Madeja',
-                color: const Color(0xFFF5F5DC),
-                colorHex: '#F5F5DC',
-                weight: '50g',
-                status: 'BAJO STOCK',
-                statusColor: AppColors.error,
-                currentStock: 5,
-                totalStock: 100,
-              ),
-              _buildTableRow(
-                image:
-                    'https://lh3.googleusercontent.com/aida-public/AB6AXuDyMdcqV9qQeMzewA5i_8YFw82jhTCnU6j1BKc2EzCOfWSxyqIyEdLfH-W7bxsb74v_npd7pxTWEi2W1HNuwdVHtZM-7zcYG8LTn8OKkIFdFtrhkfFhfkIlNXAolibIaS0a69L5qk_i7CwDuQj_6VvBvmYtd2g8b1GrYIBNugeX3U4y7_kVaNYBR5uQl1BefIDuS47Ay3U2_7faElOWeJQVme5fkVzfB9FOPoT4C72epuKWOaqxzr5O0nhKBpWwYMQlILtnsNwwtQE',
-                name: 'Trapillo Soft',
-                category: 'Madeja',
-                color: const Color(0xFF808080),
-                colorHex: '#808080',
-                weight: '500g',
-                status: 'LLENO',
-                statusColor: AppColors.success,
-                currentStock: 20,
-                totalStock: 20,
-              ),
-              _buildTableRow(
-                image:
-                    'https://lh3.googleusercontent.com/aida-public/AB6AXuBYmoS69opIPg2nXgY3-BKGej_pVKlfxtm4OjhOWnuSwtCQkctTz4xHNPq-RL8A1CDNDniDswKdwAfboMU-ev9g1pA9BZik0zhFUatddjyMG7youdC0j9SCJUNqrYzBKnFyIxNXWuPTUYVI4_K9xt5kcSwqFkhVyR__JUZCO5eRHrAJdhS-ALMFuJib11r0OEbHw8LXdhQ3xeCtI2HjrcGB1Y-c5iTWucSN01l94XKy0VqiRX6K91qazH9jZos2IEyuEdrohaOR13E',
-                name: 'Hilo de Seda',
-                category: 'Madeja',
-                color: const Color(0xFFFFFACD),
-                colorHex: '#FFFACD',
-                weight: '25g',
-                status: 'REORDENAR',
-                statusColor: AppColors.warning,
-                currentStock: 12,
-                totalStock: 60,
-              ),
+              // Table rows from Firestore
+              ...products.map((p) => _buildTableRow(product: p)),
             ],
           ),
         ),
@@ -490,22 +551,25 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  Widget _buildTableRow({
-    required String image,
-    required String name,
-    required String category,
-    required Color color,
-    required String colorHex,
-    required String weight,
-    required String status,
-    required Color statusColor,
-    required int currentStock,
-    required int totalStock,
-  }) {
+  Widget _buildTableRow({required ProductModel product}) {
+    final statusLabel = product.status.label;
+    final statusColor = switch (product.status) {
+      ProductStatus.available => AppColors.success,
+      ProductStatus.lowStock => AppColors.warning,
+      ProductStatus.outOfStock => AppColors.error,
+    };
+
+    // Parse color hex
+    Color displayColor = AppColors.lino;
+    if (product.color.isNotEmpty) {
+      try {
+        final hex = product.color.replaceFirst('#', '');
+        displayColor = Color(int.parse('FF$hex', radix: 16));
+      } catch (_) {}
+    }
+
     return InkWell(
-      onTap: () {
-        // TODO: Ver detalles
-      },
+      onTap: () => _showProductForm(existing: product),
       hoverColor: AppColors.lino,
       child: Container(
         padding: const EdgeInsets.symmetric(
@@ -517,7 +581,7 @@ class _InventoryPageState extends State<InventoryPage> {
         ),
         child: Row(
           children: [
-            // Product
+            // Product name
             Expanded(
               flex: 3,
               child: Center(
@@ -530,17 +594,33 @@ class _InventoryPageState extends State<InventoryPage> {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(Sizes.radiusMd),
                         border: Border.all(color: AppColors.lino),
-                        image: DecorationImage(
-                          image: NetworkImage(image),
-                          fit: BoxFit.cover,
-                        ),
+                        color: displayColor.withValues(alpha: 0.2),
                       ),
+                      child: product.imageUrl.isNotEmpty
+                          ? ClipRRect(
+                              borderRadius:
+                                  BorderRadius.circular(Sizes.radiusMd),
+                              child: Image.network(
+                                product.imageUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Icon(
+                                  Icons.inventory_2,
+                                  color: displayColor,
+                                  size: 20,
+                                ),
+                              ),
+                            )
+                          : Icon(
+                              Icons.inventory_2,
+                              color: displayColor,
+                              size: 20,
+                            ),
                     ),
                     const SizedBox(width: Sizes.md),
                     SizedBox(
                       width: 120,
                       child: Text(
-                        name,
+                        product.name,
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           fontSize: Sizes.fontSizeMd,
@@ -559,7 +639,7 @@ class _InventoryPageState extends State<InventoryPage> {
               child: Align(
                 alignment: Alignment.center,
                 child: Text(
-                  category,
+                  product.category,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: Sizes.fontSizeSm,
@@ -580,14 +660,14 @@ class _InventoryPageState extends State<InventoryPage> {
                       width: 12,
                       height: 12,
                       decoration: BoxDecoration(
-                        color: color,
+                        color: displayColor,
                         shape: BoxShape.circle,
                         border: Border.all(color: AppColors.lino),
                       ),
                     ),
                     const SizedBox(width: Sizes.sm),
                     Text(
-                      colorHex,
+                      product.color.isNotEmpty ? product.color : 'â€”',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: Sizes.fontSizeSm,
@@ -605,7 +685,7 @@ class _InventoryPageState extends State<InventoryPage> {
               child: Align(
                 alignment: Alignment.center,
                 child: Text(
-                  weight,
+                  product.weight.isNotEmpty ? product.weight : 'â€”',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: Sizes.fontSizeSm,
@@ -631,7 +711,7 @@ class _InventoryPageState extends State<InventoryPage> {
                     ),
                     const SizedBox(width: Sizes.sm),
                     Text(
-                      status,
+                      statusLabel,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 10,
@@ -658,9 +738,9 @@ class _InventoryPageState extends State<InventoryPage> {
                       color: AppColors.texto,
                     ),
                     children: [
-                      TextSpan(text: '$currentStock '),
+                      TextSpan(text: '${product.currentStock} '),
                       TextSpan(
-                        text: '/ $totalStock',
+                        text: '/ ${product.totalStock}',
                         style: TextStyle(color: AppColors.texto),
                       ),
                     ],
@@ -671,39 +751,41 @@ class _InventoryPageState extends State<InventoryPage> {
             // Actions
             SizedBox(
               width: 48,
-              child: IconButton(
-                onPressed: () {
-                  // TODO: Menu de opciones
-                },
+              child: PopupMenuButton<String>(
                 icon: Icon(Icons.more_horiz, color: AppColors.texto),
                 iconSize: 20,
-                splashRadius: 20,
+                onSelected: (action) {
+                  if (action == 'edit') {
+                    _showProductForm(existing: product);
+                  } else if (action == 'delete') {
+                    _confirmDelete(product);
+                  }
+                },
+                itemBuilder: (_) => [
+                  const PopupMenuItem(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit, size: 16),
+                        SizedBox(width: 8),
+                        Text('Editar'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete, size: 16, color: AppColors.error),
+                        SizedBox(width: 8),
+                        Text('Eliminar',
+                            style: TextStyle(color: AppColors.error)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildViewMoreButton() {
-    return Center(
-      child: TextButton(
-        onPressed: () {},
-        style: TextButton.styleFrom(foregroundColor: AppColors.resaltado),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'VER CATÁLOGO COMPLETO',
-              style: TextStyle(
-                fontSize: Sizes.fontSizeSm,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
-              ),
-            ),
-            SizedBox(width: Sizes.xs),
-            Icon(Icons.arrow_forward, size: 16),
           ],
         ),
       ),

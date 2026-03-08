@@ -1,21 +1,74 @@
-// =============================================================================
-//  AuthService
-//  Capa de servicio de autenticación para operaciones que combinan
-//  FirebaseAuth con la base de datos (p. ej., crear el perfil de usuario
-//  en Firestore al registrarse).
-//
-//  Estado: PENDIENTE DE IMPLEMENTACIÓN.
-//  La autenticación básica (signIn / signOut / reset) ya está cubierta
-//  por [AuthRepository]. Este servicio ampliará esa funcionalidad.
-// =============================================================================
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:andicrochett/features/auth/data/models/user_model.dart';
 
 /// [AuthService] orquesta operaciones de auth que tocan más de una fuente
 /// de datos (FirebaseAuth + Firestore 'users' collection).
 class AuthService {
-  // TODO: Implementar createUserProfile(User user) para crear el
-  //       documento en 'users/{uid}' al completar el registro.
+  AuthService({
+    FirebaseAuth? auth,
+    FirebaseFirestore? firestore,
+  })  : _auth = auth ?? FirebaseAuth.instance,
+        _db = firestore ?? FirebaseFirestore.instance;
 
-  // TODO: Implementar updateDisplayName(String name).
+  final FirebaseAuth _auth;
+  final FirebaseFirestore _db;
 
-  // TODO: Implementar deleteAccount() con cleanup de Firestore.
+  CollectionReference<Map<String, dynamic>> get _usersCol =>
+      _db.collection('users');
+
+  /// Crea el documento de perfil en 'users/{uid}' al completar el registro.
+  Future<void> createUserProfile(User user) async {
+    final now = DateTime.now();
+    final model = UserModel(
+      uid: user.uid,
+      email: user.email ?? '',
+      displayName: user.displayName ?? '',
+      photoUrl: user.photoURL ?? '',
+      authProvider: 'email',
+      createdAt: now,
+      updatedAt: now,
+    );
+    await _usersCol.doc(user.uid).set(model.toMap());
+  }
+
+  /// Actualiza el displayName en FirebaseAuth y en Firestore.
+  Future<void> updateDisplayName(String name) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    await user.updateDisplayName(name);
+    await _usersCol.doc(user.uid).update({
+      'displayName': name,
+      'updatedAt': Timestamp.fromDate(DateTime.now()),
+    });
+  }
+
+  /// Elimina la cuenta del usuario y su documento de Firestore.
+  Future<void> deleteAccount() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    // Eliminar documento de perfil
+    await _usersCol.doc(user.uid).delete();
+    // Eliminar cuenta de FirebaseAuth
+    await user.delete();
+  }
+
+  /// Obtiene el perfil del usuario actual desde Firestore.
+  Future<UserModel?> getCurrentProfile() async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+
+    final doc = await _usersCol.doc(user.uid).get();
+    if (!doc.exists) return null;
+    return UserModel.fromDoc(doc);
+  }
+
+  /// Stream del perfil del usuario actual.
+  Stream<UserModel?> watchProfile(String uid) {
+    return _usersCol.doc(uid).snapshots().map(
+      (doc) => doc.exists ? UserModel.fromDoc(doc) : null,
+    );
+  }
 }

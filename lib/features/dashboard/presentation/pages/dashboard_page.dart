@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:andicrochett/core/constants/colors.dart';
 import 'package:andicrochett/core/constants/sizes.dart';
 import 'package:andicrochett/features/agenda/presentation/pages/agenda_page.dart';
+import 'package:andicrochett/features/auth/presentation/pages/profile_page.dart';
 import 'package:andicrochett/features/dashboard/presentation/widgets/dashboard_footer.dart';
 import 'package:andicrochett/features/dashboard/presentation/widgets/sidebar_menu.dart';
 import 'package:andicrochett/features/designs/presentation/pages/designs_page.dart';
@@ -40,9 +41,7 @@ class _DashboardPageState extends State<DashboardPage> {
       'inventory' => const InventoryPage(),
       'agenda' => const AgendaPage(),
       'designs' => const DesignsPage(),
-      // DESARROLLO: Ruta 'perfil' usa la herramienta de siembra de datos.
-      // TODO: Crear ProfilePage y reemplazar _FirebaseTestView aquí.
-      'profile' => const _FirebaseTestView(),
+      'profile' => const ProfilePage(),
       _ => const _HomeView(),
     };
   }
