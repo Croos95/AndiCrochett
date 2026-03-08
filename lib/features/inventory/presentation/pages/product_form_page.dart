@@ -66,9 +66,10 @@ class _ProductFormPageState extends State<ProductFormPage> {
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
 
-    // TODO: guardar en Firestore / provider
+    // Guardar producto – devuelve el modelo al caller para persistir en Firestore
     final newProduct = ProductModel(
       id: widget.product?.id ?? '',
+      userId: widget.product?.userId ?? '',
       name: _nameCtrl.text.trim(),
       category: _selectedCategory,
       colorHex: _colorCtrl.text.trim(),

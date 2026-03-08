@@ -7,6 +7,7 @@ import 'package:andicrochett/features/inventory/presentation/pages/product_form_
 import 'package:andicrochett/features/inventory/presentation/widgets/inventory_filter_sheet.dart';
 import 'package:andicrochett/features/inventory/presentation/widgets/product_table.dart';
 import 'package:andicrochett/features/inventory/presentation/widgets/inventory_stats_bar.dart';
+import 'package:andicrochett/features/inventory/presentation/providers/inventory_provider.dart';
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key});
@@ -17,21 +18,23 @@ class InventoryPage extends StatefulWidget {
 
 class _InventoryPageState extends State<InventoryPage> {
   final TextEditingController _searchController = TextEditingController();
+  final InventoryProvider _provider = InventoryProvider();
 
-  // Datos locales de ejemplo - se reemplazaran con provider/firestore
-  List<ProductModel> _allProducts = ProductModel.sampleProducts;
   List<ProductModel> _filtered = [];
   InventoryFilters _filters = InventoryFilters.empty();
 
   @override
   void initState() {
     super.initState();
-    _applyFilters();
+    _provider.startListening();
+    _provider.addListener(_applyFilters);
     _searchController.addListener(_applyFilters);
   }
 
   @override
   void dispose() {
+    _provider.removeListener(_applyFilters);
+    _provider.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -40,9 +43,10 @@ class _InventoryPageState extends State<InventoryPage> {
 
   void _applyFilters() {
     final query = _searchController.text.toLowerCase().trim();
+    final allProducts = _provider.products;
 
     setState(() {
-      _filtered = _allProducts.where((p) {
+      _filtered = allProducts.where((p) {
         // busqueda por texto
         if (query.isNotEmpty &&
             !p.name.toLowerCase().contains(query) &&
@@ -87,9 +91,6 @@ class _InventoryPageState extends State<InventoryPage> {
         builder: (_) => ProductDetailPage(product: product),
       ),
     );
-    // result == null => sin cambios
-    // result con id vacío => se eliminó
-    // result con datos => se editó
     if (result != null && result.id.isEmpty) {
       // eliminado desde detalle
       _deleteProduct(product);
@@ -103,13 +104,17 @@ class _InventoryPageState extends State<InventoryPage> {
       MaterialPageRoute(builder: (_) => const ProductFormPage()),
     );
     if (result != null) {
-      setState(() {
-        _allProducts = [
-          ..._allProducts,
-          result.copyWith(id: 'p${_allProducts.length + 1}'),
-        ];
-      });
-      _applyFilters();
+      final id = await _provider.createProduct(result);
+      if (mounted && id != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('"${result.name}" creado'),
+            backgroundColor: AppColors.verdeOliva,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
@@ -124,21 +129,18 @@ class _InventoryPageState extends State<InventoryPage> {
     }
   }
 
-  void _updateProduct(ProductModel updated) {
-    setState(() {
-      _allProducts = _allProducts.map((p) {
-        return p.id == updated.id ? updated : p;
-      }).toList();
-    });
-    _applyFilters();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('"${updated.name}" actualizado'),
-        backgroundColor: AppColors.verdeOliva,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+  Future<void> _updateProduct(ProductModel updated) async {
+    final success = await _provider.updateProduct(updated);
+    if (mounted && success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('"${updated.name}" actualizado'),
+          backgroundColor: AppColors.verdeOliva,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   Future<void> _openFilters() async {
@@ -152,26 +154,17 @@ class _InventoryPageState extends State<InventoryPage> {
     }
   }
 
-  void _deleteProduct(ProductModel product) {
-    setState(() {
-      _allProducts = _allProducts.where((p) => p.id != product.id).toList();
-    });
-    _applyFilters();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('"${product.name}" eliminado'),
-        backgroundColor: AppColors.textoFuerte,
-        behavior: SnackBarBehavior.floating,
-        action: SnackBarAction(
-          label: 'Deshacer',
-          textColor: AppColors.resaltado,
-          onPressed: () {
-            setState(() => _allProducts = [..._allProducts, product]);
-            _applyFilters();
-          },
+  Future<void> _deleteProduct(ProductModel product) async {
+    final success = await _provider.deleteProduct(product.id);
+    if (mounted && success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('"${product.name}" eliminado'),
+          backgroundColor: AppColors.textoFuerte,
+          behavior: SnackBarBehavior.floating,
         ),
-      ),
-    );
+      );
+    }
   }
 
   // -- Build --
@@ -181,6 +174,46 @@ class _InventoryPageState extends State<InventoryPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 600;
+
+        // Estado de carga
+        if (_provider.loading && _provider.products.isEmpty) {
+          return const Center(
+            child: CircularProgressIndicator(color: AppColors.verdeOliva),
+          );
+        }
+
+        // Estado de error
+        if (_provider.error != null && _provider.products.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.cloud_off_rounded, size: 64,
+                    color: AppColors.error.withValues(alpha: 0.5)),
+                const SizedBox(height: Sizes.md),
+                const Text('Error al cargar inventario',
+                    style: TextStyle(
+                        fontSize: Sizes.fontSizeXl,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textoFuerte)),
+                const SizedBox(height: Sizes.sm),
+                Text(_provider.error!,
+                    style: const TextStyle(
+                        fontSize: Sizes.fontSizeSm, color: AppColors.texto)),
+                const SizedBox(height: Sizes.lg),
+                ElevatedButton.icon(
+                  onPressed: () => _provider.startListening(),
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('Reintentar'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.verdeOliva,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
 
         return Container(
           color: AppColors.background,

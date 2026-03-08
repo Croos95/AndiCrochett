@@ -3,7 +3,6 @@ import 'package:andicrochett/core/constants/colors.dart';
 import 'package:andicrochett/core/constants/sizes.dart';
 import 'package:andicrochett/core/constants/strings.dart';
 import 'package:andicrochett/core/config/routes.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  LoginPage

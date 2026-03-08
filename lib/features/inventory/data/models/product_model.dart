@@ -1,7 +1,9 @@
-/// Modelo local de producto para la UI.
-/// No depende de Firestore – solo es un DTO para las vistas.
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// Modelo de producto con serialización Firestore.
 class ProductModel {
   final String id;
+  final String userId;
   final String name;
   final String imageUrl;
   final String category;
@@ -16,6 +18,7 @@ class ProductModel {
 
   const ProductModel({
     required this.id,
+    this.userId = '',
     required this.name,
     this.imageUrl = '',
     required this.category,
@@ -45,10 +48,52 @@ class ProductModel {
   double get stockRatio =>
       totalStock == 0 ? 0 : (currentStock / totalStock).clamp(0.0, 1.0);
 
+  // ── Firestore serialization ─────────────────────────────────────────────
+
+  Map<String, dynamic> toMap() => {
+        'userId': userId,
+        'name': name,
+        'imageUrl': imageUrl,
+        'category': category,
+        'color': colorHex,
+        'weight': weight,
+        'currentStock': currentStock,
+        'totalStock': totalStock,
+        'status': status,
+        'isPublic': isPublic,
+        'createdAt': createdAt != null
+            ? Timestamp.fromDate(createdAt!)
+            : FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+  factory ProductModel.fromMap(String id, Map<String, dynamic> map) {
+    return ProductModel(
+      id: id,
+      userId: map['userId'] as String? ?? '',
+      name: map['name'] as String? ?? '',
+      imageUrl: map['imageUrl'] as String? ?? '',
+      category: map['category'] as String? ?? '',
+      colorHex: map['color'] as String? ?? '#FFFFFF',
+      weight: map['weight'] as String? ?? '',
+      currentStock: map['currentStock'] as int? ?? 0,
+      totalStock: map['totalStock'] as int? ?? 0,
+      status: map['status'] as String? ?? 'available',
+      isPublic: map['isPublic'] as bool? ?? true,
+      createdAt: (map['createdAt'] as Timestamp?)?.toDate(),
+      updatedAt: (map['updatedAt'] as Timestamp?)?.toDate(),
+    );
+  }
+
+  factory ProductModel.fromDocument(DocumentSnapshot doc) {
+    return ProductModel.fromMap(doc.id, doc.data() as Map<String, dynamic>);
+  }
+
   // ── copyWith ────────────────────────────────────────────────────────────
 
   ProductModel copyWith({
     String? id,
+    String? userId,
     String? name,
     String? imageUrl,
     String? category,
@@ -63,6 +108,7 @@ class ProductModel {
   }) {
     return ProductModel(
       id: id ?? this.id,
+      userId: userId ?? this.userId,
       name: name ?? this.name,
       imageUrl: imageUrl ?? this.imageUrl,
       category: category ?? this.category,
