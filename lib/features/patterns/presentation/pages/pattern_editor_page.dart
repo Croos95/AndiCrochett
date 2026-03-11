@@ -144,6 +144,10 @@ class _PatternEditorPageState extends State<PatternEditorPage> {
   String? _note;
   bool _saving = false;
 
+  // Cache for _liveErrors to avoid re-parsing on every setState.
+  String? _cachedRawText;
+  List<PatternError> _cachedErrors = const [];
+
   final _repo = PatternRepository();
 
   bool get _isEditing => widget.existing != null;
@@ -477,26 +481,28 @@ class _PatternEditorPageState extends State<PatternEditorPage> {
 
   /// Valida en tiempo real las vueltas ya construidas.
   ///
-  /// Crea una instancia temporal de [PatternDocument] para aprovechar
-  /// su lógica de validación. El caché de [PatternDocument] (late final) es
-  /// por instancia, por lo que se ejecuta un parseo completo en cada setState.
+  /// El resultado se cachea comparando el rawText actual con el anterior,
+  /// evitando un parseo completo en cada setState cuando el contenido no cambió.
   ///
   /// RENDIMIENTO: Para patrones con muchas vueltas, considerar
   /// debounce/throttle si la validación se vuelve perceptiblemente lenta.
-  /// TODO: Cachear el resultado comparando el rawText anterior con el nuevo.
   List<PatternError> get _liveErrors {
     if (_rows.isEmpty) return const [];
+    final rawText = _buildRawText();
+    if (rawText == _cachedRawText) return _cachedErrors;
     final tmp = PatternDocument(
       id: '',
       name: 'tmp',
       type: _type,
-      rawText: _buildRawText(),
+      rawText: rawText,
       designId: widget.existing?.designId ?? widget.designId,
       userId: '',
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
-    return tmp.validate();
+    _cachedRawText = rawText;
+    _cachedErrors = tmp.validate();
+    return _cachedErrors;
   }
 
   Future<void> _save() async {
@@ -1080,7 +1086,7 @@ class _PatternEditorPageState extends State<PatternEditorPage> {
                       row.toRawLine(),
                       style: TextStyle(
                         fontFamily: 'monospace',
-                        fontSize: Sizes.fontSizeSm,
+                        fontSize: Sizes.fontSizeXl,
                         color: hasError
                             ? AppColors.textoFuerte
                             : AppColors.textoFuerte,
@@ -1191,7 +1197,7 @@ class _PatternEditorPageState extends State<PatternEditorPage> {
                         : '[ ${_blk.map((s) => s.raw).join(', ')} ] \u00d7 ...',
                     style: const TextStyle(
                       fontFamily: 'monospace',
-                      fontSize: Sizes.fontSizeSm,
+                      fontSize: Sizes.fontSizeXl,
                       color: AppColors.bronce,
                     ),
                   ),

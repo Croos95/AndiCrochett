@@ -739,9 +739,7 @@ class _SocialButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OutlinedButton.icon(
-      onPressed: () {
-        // TODO: autenticación social
-      },
+      onPressed: () {},
       icon: Icon(icon, size: Sizes.iconMd, color: AppColors.textoFuerte),
       label: Text(
         label,

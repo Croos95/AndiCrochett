@@ -2,12 +2,8 @@
 //  AgendaPage
 //  Pantalla de agenda / gestión de pedidos de clientes.
 //
-//  Estado: PENDIENTE DE IMPLEMENTACIÓN.
-//  Actualmente el dashboard muestra el texto 'Agenda' como placeholder.
-//  Esta pantalla reemplazará ese placeholder y mostrará:
-//    - Lista/calendario de pedidos.
-//    - Creación y edición de pedidos desde OrderModel.
-//    - Barra de estado con conteos (pendientes, en proceso, completados).
+//  Muestra lista y calendario de pedidos, permite crear/editar desde OrderModel
+//  y presenta una barra de estado con conteos por estado.
 // =============================================================================
 
 import 'package:flutter/material.dart';
@@ -49,10 +45,9 @@ class _AgendaPageState extends State<AgendaPage> {
             defaultDate: _selectedDay,
             onSave: (order) async {
               if (existing != null) {
-                await _repo.update(order.copyWith(
-                  id: existing.id,
-                  userId: existing.userId,
-                ));
+                await _repo.update(
+                  order.copyWith(id: existing.id, userId: existing.userId),
+                );
               } else {
                 await _repo.create(order.copyWith(userId: _userId));
               }
@@ -69,9 +64,7 @@ class _AgendaPageState extends State<AgendaPage> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Eliminar pedido'),
-        content: Text(
-          '¿Eliminar el pedido de "${order.customerName}"?',
-        ),
+        content: Text('¿Eliminar el pedido de "${order.customerName}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -80,7 +73,10 @@ class _AgendaPageState extends State<AgendaPage> {
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'Eliminar',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -94,15 +90,21 @@ class _AgendaPageState extends State<AgendaPage> {
       stream: _repo.watchByUser(_userId),
       builder: (context, snapshot) {
         final allOrders = snapshot.data ?? [];
-        final dayOrders = allOrders.where((o) =>
-            o.dueDate.year == _selectedDay.year &&
-            o.dueDate.month == _selectedDay.month &&
-            o.dueDate.day == _selectedDay.day).toList();
+        final dayOrders = allOrders
+            .where(
+              (o) =>
+                  o.dueDate.year == _selectedDay.year &&
+                  o.dueDate.month == _selectedDay.month &&
+                  o.dueDate.day == _selectedDay.day,
+            )
+            .toList();
 
-        final pendingCount =
-            allOrders.where((o) => o.status == OrderStatus.pending).length;
-        final inProgressCount =
-            allOrders.where((o) => o.status == OrderStatus.inProgress).length;
+        final pendingCount = allOrders
+            .where((o) => o.status == OrderStatus.pending)
+            .length;
+        final inProgressCount = allOrders
+            .where((o) => o.status == OrderStatus.inProgress)
+            .length;
 
         return LayoutBuilder(
           builder: (context, constraints) {
@@ -123,8 +125,8 @@ class _AgendaPageState extends State<AgendaPage> {
                     child: snapshot.connectionState == ConnectionState.waiting
                         ? const Center(child: CircularProgressIndicator())
                         : isMobile
-                            ? _buildMobileLayout(allOrders, dayOrders)
-                            : _buildDesktopLayout(allOrders, dayOrders),
+                        ? _buildMobileLayout(allOrders, dayOrders)
+                        : _buildDesktopLayout(allOrders, dayOrders),
                   ),
                 ],
               ),
@@ -206,11 +208,13 @@ class _AgendaPageState extends State<AgendaPage> {
                 children: [
                   Icon(Icons.add, size: 16),
                   SizedBox(width: 6),
-                  Text('Nuevo pedido',
-                      style: TextStyle(
-                        fontSize: Sizes.fontSizeSm,
-                        fontWeight: FontWeight.bold,
-                      )),
+                  Text(
+                    'Nuevo pedido',
+                    style: TextStyle(
+                      fontSize: Sizes.fontSizeSm,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -221,7 +225,9 @@ class _AgendaPageState extends State<AgendaPage> {
   }
 
   Widget _buildDesktopLayout(
-      List<OrderModel> allOrders, List<OrderModel> dayOrders) {
+    List<OrderModel> allOrders,
+    List<OrderModel> dayOrders,
+  ) {
     return Padding(
       padding: const EdgeInsets.all(Sizes.lg),
       child: Row(
@@ -245,7 +251,9 @@ class _AgendaPageState extends State<AgendaPage> {
   }
 
   Widget _buildMobileLayout(
-      List<OrderModel> allOrders, List<OrderModel> dayOrders) {
+    List<OrderModel> allOrders,
+    List<OrderModel> dayOrders,
+  ) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(Sizes.md),
       child: Column(
@@ -271,9 +279,7 @@ class _AgendaPageState extends State<AgendaPage> {
             Icon(Icons.event_available, size: 48, color: AppColors.texto),
             const SizedBox(height: Sizes.sm),
             Text(
-              'Sin pedidos para ${AppHelpers.formatDate(
-                _selectedDay,
-              )}',
+              'Sin pedidos para ${AppHelpers.formatDate(_selectedDay)}',
               style: TextStyle(
                 fontSize: Sizes.fontSizeMd,
                 color: AppColors.texto,
@@ -296,13 +302,14 @@ class _AgendaPageState extends State<AgendaPage> {
           ),
         ),
         const SizedBox(height: Sizes.md),
-        ...orders.map((order) => _OrderCard(
-              order: order,
-              onTap: () => _showOrderForm(existing: order),
-              onStatusChange: (status) =>
-                  _repo.updateStatus(order.id, status),
-              onDelete: () => _confirmDelete(order),
-            )),
+        ...orders.map(
+          (order) => _OrderCard(
+            order: order,
+            onTap: () => _showOrderForm(existing: order),
+            onStatusChange: (status) => _repo.updateStatus(order.id, status),
+            onDelete: () => _confirmDelete(order),
+          ),
+        ),
       ],
     );
   }
@@ -360,7 +367,9 @@ class _OrderCard extends StatelessWidget {
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: statusColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
@@ -392,18 +401,28 @@ class _OrderCard extends StatelessWidget {
                     },
                     itemBuilder: (_) => [
                       const PopupMenuItem(
-                          value: 'pending', child: Text('Pendiente')),
+                        value: 'pending',
+                        child: Text('Pendiente'),
+                      ),
                       const PopupMenuItem(
-                          value: 'in_progress', child: Text('En proceso')),
+                        value: 'in_progress',
+                        child: Text('En proceso'),
+                      ),
                       const PopupMenuItem(
-                          value: 'completed', child: Text('Completado')),
+                        value: 'completed',
+                        child: Text('Completado'),
+                      ),
                       const PopupMenuItem(
-                          value: 'cancelled', child: Text('Cancelado')),
+                        value: 'cancelled',
+                        child: Text('Cancelado'),
+                      ),
                       const PopupMenuDivider(),
                       const PopupMenuItem(
                         value: 'delete',
-                        child: Text('Eliminar',
-                            style: TextStyle(color: AppColors.error)),
+                        child: Text(
+                          'Eliminar',
+                          style: TextStyle(color: AppColors.error),
+                        ),
                       ),
                     ],
                   ),
@@ -421,43 +440,47 @@ class _OrderCard extends StatelessWidget {
               ],
               if (order.items.isNotEmpty) ...[
                 const SizedBox(height: Sizes.sm),
-                ...order.items.map((item) => Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
-                      child: Row(
-                        children: [
-                          Text(
-                            '${item.quantity}x ',
-                            style: TextStyle(
-                              fontSize: Sizes.fontSizeSm,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.resaltado,
-                            ),
+                ...order.items.map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: Row(
+                      children: [
+                        Text(
+                          '${item.quantity}x ',
+                          style: TextStyle(
+                            fontSize: Sizes.fontSizeSm,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.resaltado,
                           ),
-                          Expanded(
-                            child: Text(
-                              item.productName,
-                              style: TextStyle(
-                                fontSize: Sizes.fontSizeSm,
-                                color: AppColors.texto,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            '\$${item.subtotal.toStringAsFixed(0)}',
+                        ),
+                        Expanded(
+                          child: Text(
+                            item.productName,
                             style: TextStyle(
                               fontSize: Sizes.fontSizeSm,
                               color: AppColors.texto,
                             ),
                           ),
-                        ],
-                      ),
-                    )),
+                        ),
+                        Text(
+                          '\$${item.subtotal.toStringAsFixed(0)}',
+                          style: TextStyle(
+                            fontSize: Sizes.fontSizeSm,
+                            color: AppColors.texto,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 const Divider(height: Sizes.md),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Total',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Total',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     Text(
                       '\$${order.totalPrice.toStringAsFixed(0)}',
                       style: const TextStyle(
@@ -519,8 +542,9 @@ class _OrderFormState extends State<_OrderForm> {
     super.initState();
     final e = widget.existing;
     _customerNameCtrl = TextEditingController(text: e?.customerName ?? '');
-    _customerContactCtrl =
-        TextEditingController(text: e?.customerContact ?? '');
+    _customerContactCtrl = TextEditingController(
+      text: e?.customerContact ?? '',
+    );
     _notesCtrl = TextEditingController(text: e?.notes ?? '');
     _totalPriceCtrl = TextEditingController(
       text: e != null ? e.totalPrice.toStringAsFixed(0) : '',
@@ -650,10 +674,7 @@ class _OrderFormState extends State<_OrderForm> {
                 ),
               ),
               items: OrderStatus.values
-                  .map((s) => DropdownMenuItem(
-                        value: s,
-                        child: Text(s.label),
-                      ))
+                  .map((s) => DropdownMenuItem(value: s, child: Text(s.label)))
                   .toList(),
               onChanged: (v) =>
                   setState(() => _status = v ?? OrderStatus.pending),

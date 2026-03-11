@@ -5,9 +5,6 @@
 //  Firebase Auth provee el UID, email y displayName básicos.
 //  Este modelo mapea el documento 'users/{uid}' que contiene preferencias,
 //  foto de perfil, fecha de creación y configuración de la aplicación.
-//
-//  Estado: PENDIENTE DE IMPLEMENTACIÓN.
-//  Ver el documento sembrado en _FirebaseTestView para el esquema esperado.
 // =============================================================================
 
 import 'package:flutter/foundation.dart';

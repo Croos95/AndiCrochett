@@ -8,6 +8,7 @@ import 'package:andicrochett/features/designs/data/repositories/design_repositor
 import 'package:andicrochett/features/designs/presentation/pages/design_detail_page.dart';
 import 'package:andicrochett/features/designs/presentation/pages/design_editor_page.dart';
 import 'package:andicrochett/features/designs/presentation/widgets/design_card.dart';
+import 'package:andicrochett/features/patterns/data/models/pattern_model.dart';
 import 'package:andicrochett/features/patterns/data/repositories/pattern_repository.dart';
 
 // =============================================================================
@@ -143,19 +144,32 @@ class _DesignsPageState extends State<DesignsPage> {
                       return const EmptyStateView(
                         icon: Icons.design_services_outlined,
                         title: 'Aún no hay diseños',
-                        subtitle: 'Crea tu primer diseño con el botón "Nuevo diseño".',
+                        subtitle:
+                            'Crea tu primer diseño con el botón "Nuevo diseño".',
                       );
                     }
 
-                    // Stream del conteo de patrones por diseño mediante un StreamBuilder anidado.
-                    return _DesignGrid(
-                      designs: filtered,
-                      isMobile: isMobile,
-                      patternRepo: _patternRepo,
-                      userId: userId ?? '',
-                      onTap: _openDetail,
-                      onEdit: (d) => _openEditor(existing: d),
-                      onDelete: _confirmDelete,
+                    // Un único listener Firestore que trae todos los patrones
+                    // del usuario; los conteos por diseño se calculan localmente.
+                    return StreamBuilder<List<PatternDocument>>(
+                      stream: _patternRepo.watchByUser(userId ?? ''),
+                      builder: (_, patSnap) {
+                        final allPatterns = patSnap.data ?? [];
+                        final counts = <String, int>{
+                          for (final d in filtered)
+                            d.id: allPatterns
+                                .where((p) => p.designId == d.id)
+                                .length,
+                        };
+                        return _DesignGrid(
+                          designs: filtered,
+                          isMobile: isMobile,
+                          patternCounts: counts,
+                          onTap: _openDetail,
+                          onEdit: (d) => _openEditor(existing: d),
+                          onDelete: _confirmDelete,
+                        );
+                      },
                     );
                   },
                 ),
@@ -290,8 +304,7 @@ class _DesignGrid extends StatelessWidget {
   const _DesignGrid({
     required this.designs,
     required this.isMobile,
-    required this.patternRepo,
-    required this.userId,
+    required this.patternCounts,
     required this.onTap,
     required this.onEdit,
     required this.onDelete,
@@ -299,21 +312,15 @@ class _DesignGrid extends StatelessWidget {
 
   final List<DesignDocument> designs;
   final bool isMobile;
-  final PatternRepository patternRepo;
-  final String userId;
+
+  /// Conteo de patrones por design ID, calculado desde un único stream.
+  final Map<String, int> patternCounts;
   final void Function(DesignDocument) onTap;
   final void Function(DesignDocument) onEdit;
   final void Function(DesignDocument) onDelete;
 
   @override
   Widget build(BuildContext context) {
-    /// Stream del número de patrones de un diseño mediante StreamBuilder anidado.
-    ///
-    /// ARQUITECTURA: Un StreamBuilder por tarjeta crea N listeners en Firestore
-    /// (uno por diseño). Si el usuario tiene muchos diseños, esto puede generar
-    /// carga innecesaria.
-    /// TODO: Optimizar con una sola consulta agregada cuando la API de Firestore
-    /// soporte conteos atómicos (actualmente disponible via REST pero no en SDK Flutter).
     return Padding(
       padding: EdgeInsets.all(isMobile ? Sizes.md : Sizes.lg),
       child: GridView.builder(
@@ -326,21 +333,15 @@ class _DesignGrid extends StatelessWidget {
         itemCount: designs.length,
         itemBuilder: (_, i) {
           final d = designs[i];
-          return StreamBuilder<int>(
-            stream: patternRepo.countByDesign(d.id, userId: userId),
-            builder: (_, snap) {
-              return DesignCard(
-                design: d,
-                patternCount: snap.data ?? 0,
-                onTap: () => onTap(d),
-                onEdit: () => onEdit(d),
-                onDelete: () => onDelete(d),
-              );
-            },
+          return DesignCard(
+            design: d,
+            patternCount: patternCounts[d.id] ?? 0,
+            onTap: () => onTap(d),
+            onEdit: () => onEdit(d),
+            onDelete: () => onDelete(d),
           );
         },
       ),
     );
   }
 }
-

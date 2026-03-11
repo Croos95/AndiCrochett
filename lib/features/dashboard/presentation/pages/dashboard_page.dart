@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:andicrochett/core/constants/colors.dart';
 import 'package:andicrochett/core/constants/sizes.dart';
+import 'package:andicrochett/features/agenda/data/models/order_model.dart';
+import 'package:andicrochett/features/agenda/data/repositories/agenda_repository.dart';
 import 'package:andicrochett/features/agenda/presentation/pages/agenda_page.dart';
 import 'package:andicrochett/features/auth/presentation/pages/profile_page.dart';
 import 'package:andicrochett/features/dashboard/presentation/widgets/dashboard_footer.dart';
 import 'package:andicrochett/features/dashboard/presentation/widgets/sidebar_menu.dart';
 import 'package:andicrochett/features/designs/presentation/pages/designs_page.dart';
+import 'package:andicrochett/features/inventory/data/repositories/inventory_repository.dart';
 import 'package:andicrochett/features/inventory/presentation/pages/inventory_page.dart';
+import 'package:andicrochett/features/patterns/data/repositories/pattern_repository.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -27,12 +32,11 @@ class _DashboardPageState extends State<DashboardPage> {
   /// Construye el widget de contenido según la ruta activa del sidebar.
   ///
   /// Notas de cada ruta:
-  ///   'home'      → Resumen estádtico; TODO: conectar a datos reales.
-  ///   'inventory' → Pantalla de inventario (UI estática, pendiente Firestore).
-  ///   'agenda'    → Pantalla de agenda / pedidos (pendiente implementación).
+  ///   'home'      → Resumen con datos en tiempo real desde Firestore.
+  ///   'inventory' → Pantalla de inventario.
+  ///   'agenda'    → Pantalla de agenda / pedidos.
   ///   'designs'   → Pantalla de diseños con Firestore activo.
-  ///   'profile'   → Herramienta de desarrollo: siembra datos en Firestore.
-  ///               PENDIENTE reemplazar con ProfilePage en producción.
+  ///   'profile'   → ProfilePage.
   Widget _buildContent() {
     return switch (_selectedRoute) {
       'home' => const _HomeView(),
@@ -111,12 +115,24 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 }
 
-// Vista de inicio temporal
-class _HomeView extends StatelessWidget {
+// Panel principal con datos en tiempo real
+class _HomeView extends StatefulWidget {
   const _HomeView();
 
   @override
+  State<_HomeView> createState() => _HomeViewState();
+}
+
+class _HomeViewState extends State<_HomeView> {
+  final _inventoryRepo = InventoryRepository();
+  final _agendaRepo = AgendaRepository();
+  final _patternRepo = PatternRepository();
+
+  String get _userId => FirebaseAuth.instance.currentUser?.uid ?? '';
+
+  @override
   Widget build(BuildContext context) {
+    final uid = _userId;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(Sizes.xl),
       child: Column(
@@ -136,26 +152,46 @@ class _HomeView extends StatelessWidget {
             spacing: Sizes.md,
             runSpacing: Sizes.md,
             children: [
-              _DashboardCard(
-                title: 'Inventario',
-                value: '124',
-                subtitle: 'productos',
-                color: AppColors.bronce,
-                icon: Icons.inventory_2,
+              StreamBuilder(
+                stream: _inventoryRepo.watchByUser(uid),
+                builder: (_, snap) => _DashboardCard(
+                  title: 'Inventario',
+                  value: '${snap.data?.length ?? 0}',
+                  subtitle: 'productos',
+                  color: AppColors.bronce,
+                  icon: Icons.inventory_2,
+                ),
               ),
-              _DashboardCard(
-                title: 'Pedidos',
-                value: '8',
-                subtitle: 'pendientes',
-                color: AppColors.verdeOliva,
-                icon: Icons.receipt_long,
+              StreamBuilder(
+                stream: _agendaRepo.watchByUser(uid),
+                builder: (_, snap) {
+                  final pending =
+                      snap.data
+                          ?.where(
+                            (o) =>
+                                o.status == OrderStatus.pending ||
+                                o.status == OrderStatus.inProgress,
+                          )
+                          .length ??
+                      0;
+                  return _DashboardCard(
+                    title: 'Pedidos',
+                    value: '$pending',
+                    subtitle: 'pendientes',
+                    color: AppColors.verdeOliva,
+                    icon: Icons.receipt_long,
+                  );
+                },
               ),
-              _DashboardCard(
-                title: 'Patrones',
-                value: '32',
-                subtitle: 'creados',
-                color: AppColors.resaltado,
-                icon: Icons.grid_on,
+              StreamBuilder(
+                stream: _patternRepo.watchByUser(uid),
+                builder: (_, snap) => _DashboardCard(
+                  title: 'Patrones',
+                  value: '${snap.data?.length ?? 0}',
+                  subtitle: 'creados',
+                  color: AppColors.resaltado,
+                  icon: Icons.grid_on,
+                ),
               ),
             ],
           ),
