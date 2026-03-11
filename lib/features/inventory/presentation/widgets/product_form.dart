@@ -211,7 +211,7 @@ class _ProductFormState extends State<ProductForm> {
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         final confirm = await _confirmDiscard();
-        if (confirm && mounted) Navigator.pop(context);
+        if (confirm && context.mounted) Navigator.pop(context);
       },
       child: Form(
         key: _formKey,
@@ -300,7 +300,7 @@ class _ProductFormState extends State<ProductForm> {
                   const SizedBox(height: Sizes.md),
 
                   DropdownButtonFormField<String>(
-                    value: _category,
+                    initialValue: _category,
                     decoration: InputDecoration(
                       labelText: 'Categoría *',
                       prefixIcon: const Icon(
@@ -433,7 +433,7 @@ class _ProductFormState extends State<ProductForm> {
                               ? null
                               : () async {
                                   if (await _confirmDiscard()) {
-                                    if (mounted) Navigator.pop(context);
+                                    if (context.mounted) Navigator.pop(context);
                                   }
                                 },
                         ),
@@ -464,7 +464,7 @@ class _ProductFormState extends State<ProductForm> {
                               ? null
                               : () async {
                                   if (await _confirmDiscard()) {
-                                    if (mounted) Navigator.pop(context);
+                                    if (context.mounted) Navigator.pop(context);
                                   }
                                 },
                           width: double.infinity,

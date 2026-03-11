@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:andicrochett/core/constants/colors.dart';
 import 'package:andicrochett/core/constants/sizes.dart';
+import 'package:andicrochett/core/widgets/card_context_menu.dart';
 import 'package:andicrochett/features/patterns/data/models/pattern_model.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -88,7 +89,7 @@ class PatternCard extends StatelessWidget {
                             _ErrorBadge(count: errors.length),
                           ],
                           const Spacer(),
-                          _ContextMenu(onEdit: onEdit, onDelete: onDelete),
+                          CardContextMenu(onEdit: onEdit, onDelete: onDelete),
                         ],
                       ),
                       const SizedBox(height: Sizes.sm),
@@ -219,45 +220,3 @@ class _InfoChip extends StatelessWidget {
   }
 }
 
-class _ContextMenu extends StatelessWidget {
-  const _ContextMenu({required this.onEdit, required this.onDelete});
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_vert, size: 18, color: AppColors.texto),
-      splashRadius: 18,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(Sizes.radiusMd),
-      ),
-      itemBuilder: (_) => [
-        const PopupMenuItem(
-          value: 'edit',
-          child: Row(
-            children: [
-              Icon(Icons.edit_outlined, size: 18, color: AppColors.texto),
-              SizedBox(width: Sizes.sm),
-              Text('Editar'),
-            ],
-          ),
-        ),
-        const PopupMenuItem(
-          value: 'delete',
-          child: Row(
-            children: [
-              Icon(Icons.delete_outline, size: 18, color: AppColors.error),
-              SizedBox(width: Sizes.sm),
-              Text('Eliminar', style: TextStyle(color: AppColors.error)),
-            ],
-          ),
-        ),
-      ],
-      onSelected: (value) {
-        if (value == 'edit') onEdit();
-        if (value == 'delete') onDelete();
-      },
-    );
-  }
-}

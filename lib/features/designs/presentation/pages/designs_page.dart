@@ -2,6 +2,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:andicrochett/core/constants/colors.dart';
 import 'package:andicrochett/core/constants/sizes.dart';
+import 'package:andicrochett/core/widgets/empty_state_view.dart';
 import 'package:andicrochett/features/designs/data/models/design_model.dart';
 import 'package:andicrochett/features/designs/data/repositories/design_repository.dart';
 import 'package:andicrochett/features/designs/presentation/pages/design_detail_page.dart';
@@ -139,7 +140,11 @@ class _DesignsPageState extends State<DesignsPage> {
                               .toList();
 
                     if (filtered.isEmpty) {
-                      return const _EmptyView();
+                      return const EmptyStateView(
+                        icon: Icons.design_services_outlined,
+                        title: 'Aún no hay diseños',
+                        subtitle: 'Crea tu primer diseño con el botón "Nuevo diseño".',
+                      );
                     }
 
                     // Stream del conteo de patrones por diseño mediante un StreamBuilder anidado.
@@ -339,48 +344,3 @@ class _DesignGrid extends StatelessWidget {
   }
 }
 
-// ── Estado vacío ─────────────────────────────────────────────────────────────
-
-class _EmptyView extends StatelessWidget {
-  const _EmptyView();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 90,
-            height: 90,
-            decoration: BoxDecoration(
-              color: AppColors.lino.withValues(alpha: 0.6),
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: const Text('\u{1FAA1}', style: TextStyle(fontSize: 44)),
-          ),
-          const SizedBox(height: Sizes.lg),
-          const Text(
-            'Aún no hay diseños',
-            style: TextStyle(
-              fontSize: Sizes.fontSizeXl,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textoFuerte,
-              fontFamily: 'Lora',
-            ),
-          ),
-          const SizedBox(height: Sizes.sm),
-          const Text(
-            'Crea tu primer diseño con el botón "Nuevo diseño".',
-            style: TextStyle(
-              fontSize: Sizes.fontSizeMd,
-              color: AppColors.texto,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-}

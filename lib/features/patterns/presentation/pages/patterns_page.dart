@@ -2,6 +2,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:andicrochett/core/constants/colors.dart';
 import 'package:andicrochett/core/constants/sizes.dart';
+import 'package:andicrochett/core/widgets/empty_state_view.dart';
 import 'package:andicrochett/features/patterns/data/models/pattern_model.dart';
 import 'package:andicrochett/features/patterns/data/repositories/pattern_repository.dart';
 import 'package:andicrochett/features/patterns/presentation/pages/pattern_detail_page.dart';
@@ -139,7 +140,13 @@ class _PatternsPageState extends State<PatternsPage> {
                       );
                     }
                     final filtered = _applyFilters(snapshot.data ?? []);
-                    if (filtered.isEmpty) return const _EmptyView();
+                    if (filtered.isEmpty) {
+                      return const EmptyStateView(
+                        icon: Icons.grid_off_outlined,
+                        title: 'Aún no hay patrones',
+                        subtitle: 'Crea tu primer patrón con el botón "Nuevo patrón".',
+                      );
+                    }
                     return _PatternGrid(
                       patterns: filtered,
                       isMobile: isMobile,
@@ -344,45 +351,6 @@ class _PatternGrid extends StatelessWidget {
             onDelete: () => onDelete(p),
           );
         },
-      ),
-    );
-  }
-}
-
-// ── Estado vacío ─────────────────────────────────────────────────────────────
-
-class _EmptyView extends StatelessWidget {
-  const _EmptyView();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.grid_off_outlined,
-            size: 64,
-            color: AppColors.border,
-          ),
-          const SizedBox(height: Sizes.md),
-          const Text(
-            'Aún no hay patrones',
-            style: TextStyle(
-              fontSize: Sizes.fontSizeXl,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textoFuerte,
-            ),
-          ),
-          const SizedBox(height: Sizes.sm),
-          const Text(
-            'Crea tu primer patrón con el botón "Nuevo patrón".',
-            style: TextStyle(
-              fontSize: Sizes.fontSizeMd,
-              color: AppColors.texto,
-            ),
-          ),
-        ],
       ),
     );
   }

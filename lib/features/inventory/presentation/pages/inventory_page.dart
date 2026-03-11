@@ -113,11 +113,13 @@ class _InventoryPageState extends State<InventoryPage> {
                       if (_searchQuery.isNotEmpty &&
                           !p.name.toLowerCase().contains(
                             _searchQuery.toLowerCase(),
-                          ))
+                          )) {
                         return false;
+                      }
                       if (_filterCategory != null &&
-                          p.category != _filterCategory)
+                          p.category != _filterCategory) {
                         return false;
+                      }
                       if (_filterStatus != null) {
                         final statusVal = switch (_filterStatus) {
                           'available' => ProductStatus.available,

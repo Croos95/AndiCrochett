@@ -22,12 +22,6 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
-  // Checkbox "Recordarme" — UI state únicamente.
-  // Firebase Auth mantiene la sesión activa de forma predeterminada en todas
-  // las plataformas (LOCAL persistence en web, nativa en móvil).
-  // TODO: Si se requiere control explícito, usar FirebaseAuth.instance.setPersistence().
-  bool _rememberMe = false;
-
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -192,13 +186,10 @@ class _LoginPageState extends State<LoginPage> {
                   emailController: _emailController,
                   passwordController: _passwordController,
                   obscurePassword: _obscurePassword,
-                  rememberMe: _rememberMe,
                   isLoading: _isLoading,
                   errorMessage: _errorMessage,
                   onTogglePassword: () =>
                       setState(() => _obscurePassword = !_obscurePassword),
-                  onToggleRemember: (v) =>
-                      setState(() => _rememberMe = v ?? false),
                   onSubmit: _handleSignIn,
                   onForgotPassword: _handleForgotPassword,
                   onRegister: _handleRegister,
@@ -315,11 +306,9 @@ class _RightPanel extends StatelessWidget {
     required this.emailController,
     required this.passwordController,
     required this.obscurePassword,
-    required this.rememberMe,
     required this.isLoading,
     required this.errorMessage,
     required this.onTogglePassword,
-    required this.onToggleRemember,
     required this.onSubmit,
     required this.onForgotPassword,
     required this.onRegister,
@@ -329,11 +318,9 @@ class _RightPanel extends StatelessWidget {
   final TextEditingController emailController;
   final TextEditingController passwordController;
   final bool obscurePassword;
-  final bool rememberMe;
   final bool isLoading;
   final String? errorMessage;
   final VoidCallback onTogglePassword;
-  final ValueChanged<bool?> onToggleRemember;
   final Future<void> Function() onSubmit;
   final Future<void> Function() onForgotPassword;
   final Future<void> Function() onRegister;
@@ -362,11 +349,9 @@ class _RightPanel extends StatelessWidget {
                   emailController: emailController,
                   passwordController: passwordController,
                   obscurePassword: obscurePassword,
-                  rememberMe: rememberMe,
                   isLoading: isLoading,
                   errorMessage: errorMessage,
                   onTogglePassword: onTogglePassword,
-                  onToggleRemember: onToggleRemember,
                   onSubmit: onSubmit,
                   onForgotPassword: onForgotPassword,
                 ),
@@ -440,11 +425,9 @@ class _FormCard extends StatelessWidget {
     required this.emailController,
     required this.passwordController,
     required this.obscurePassword,
-    required this.rememberMe,
     required this.isLoading,
     required this.errorMessage,
     required this.onTogglePassword,
-    required this.onToggleRemember,
     required this.onSubmit,
     required this.onForgotPassword,
   });
@@ -453,11 +436,9 @@ class _FormCard extends StatelessWidget {
   final TextEditingController emailController;
   final TextEditingController passwordController;
   final bool obscurePassword;
-  final bool rememberMe;
   final bool isLoading;
   final String? errorMessage;
   final VoidCallback onTogglePassword;
-  final ValueChanged<bool?> onToggleRemember;
   final Future<void> Function() onSubmit;
   final Future<void> Function() onForgotPassword;
 
@@ -517,44 +498,20 @@ class _FormCard extends StatelessWidget {
               },
             ),
             const SizedBox(height: Sizes.md),
-            // Recordarme + ¿olvidaste?
-            Row(
-              children: [
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: Checkbox(
-                    value: rememberMe,
-                    onChanged: onToggleRemember,
-                    activeColor: AppColors.bronce,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(Sizes.radiusSm),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: Sizes.sm),
-                Text(
-                  'Recordarme',
+            // ¿Olvidaste tu contraseña?
+            Align(
+              alignment: Alignment.centerRight,
+              child: GestureDetector(
+                onTap: onForgotPassword,
+                child: const Text(
+                  '¿Olvidaste tu contraseña?',
                   style: TextStyle(
-                    color: AppColors.texto,
+                    color: AppColors.resaltado,
                     fontSize: Sizes.fontSizeSm,
+                    decoration: TextDecoration.underline,
                   ),
                 ),
-                const Spacer(),
-                GestureDetector(
-                  onTap: () {
-                    // TODO: recuperar contraseña
-                  },
-                  child: const Text(
-                    '¿Olvidaste tu contraseña?',
-                    style: TextStyle(
-                      color: AppColors.resaltado,
-                      fontSize: Sizes.fontSizeSm,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
             const SizedBox(height: Sizes.xl),
             // Mensaje de error

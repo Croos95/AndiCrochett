@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:andicrochett/core/constants/colors.dart';
 import 'package:andicrochett/core/constants/sizes.dart';
 import 'package:andicrochett/core/services/auth_service.dart';
+import 'package:andicrochett/core/utils/helpers.dart';
 import 'package:andicrochett/core/widgets/custom_button.dart';
 import 'package:andicrochett/core/widgets/custom_input.dart';
 import 'package:andicrochett/features/auth/data/models/user_model.dart';
@@ -108,7 +109,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   if (profile != null)
                     Text(
-                      'Miembro desde ${_formatShortDate(profile.createdAt)}',
+                      'Miembro desde ${AppHelpers.formatShortDate(profile.createdAt)}',
                       style: TextStyle(
                         fontSize: Sizes.fontSizeSm,
                         color: AppColors.texto.withValues(alpha: 0.6),
@@ -225,14 +226,6 @@ class _ProfilePageState extends State<ProfilePage> {
       },
     );
   }
-
-  String _formatShortDate(DateTime date) {
-    final months = [
-      'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-      'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
-    ];
-    return '${months[date.month - 1]} ${date.year}';
-  }
 }
 
 class _PreferenceRow extends StatelessWidget {
@@ -268,3 +261,4 @@ class _PreferenceRow extends StatelessWidget {
     );
   }
 }
+
