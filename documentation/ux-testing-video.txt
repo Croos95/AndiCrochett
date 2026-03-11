@@ -1,0 +1,36 @@
+# Test de Experiencia de Usuario - AndiCrochet
+
+## Descripción
+Se realizó el primer test de experiencia de usuario del sistema AndiCrochet con tres participantes 
+de perfiles distintos para obtener diferentes perspectivas sobre el uso de la aplicación.
+
+## Participantes
+
+1. **Dueña del negocio**
+    - Usuaria principal del sistema
+    - Encargada de validar que las funcionalidades respondan a las necesidades reales del negocio
+
+2. **Invitado 2**
+    - Persona dedicada al arte
+    - Aportó una perspectiva creativa
+    - Evaluó aspectos visuales como diseño, interfaz y experiencia de usuario
+
+## Video
+[https://youtu.be/k0iLwJATY8Q]
+
+## Conclusiones
+
+### Dueña del negocio
+La dueña del negocio mostró una aceptación muy positiva hacia el sistema:
+- La distribución de elementos le resultó agradable y fácil de entender
+- La paleta de colores y tipografía fueron bien recibidas
+- Expresó entusiasmo al utilizar la aplicación
+- Aprobó las funcionalidades implementadas hasta el momento
+- Considera que la aplicación será útil para su negocio
+
+### Invitado 2
+El invitado 2 tuvo una percepción más crítica del sistema:
+- Expresó observaciones negativas relacionadas con UI/UX
+- Señaló aspectos mejorables para una navegación más intuitiva
+- Su evaluación más estricta proporciona valiosa retroalimentación
+- Sus comentarios identifican áreas de mejora para refinar el diseño
