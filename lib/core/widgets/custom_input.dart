@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:andicrochett/core/constants/colors.dart';
 import 'package:andicrochett/core/constants/sizes.dart';
 
@@ -20,6 +21,8 @@ class AppInput extends StatelessWidget {
     this.enabled = true,
     this.autofocus = false,
     this.initialValue,
+    this.inputFormatters,
+    this.maxLength,
   });
 
   final TextEditingController? controller;
@@ -36,6 +39,8 @@ class AppInput extends StatelessWidget {
   final bool enabled;
   final bool autofocus;
   final String? initialValue;
+  final List<TextInputFormatter>? inputFormatters;
+  final int? maxLength;
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +55,8 @@ class AppInput extends StatelessWidget {
       autofocus: autofocus,
       validator: validator,
       onChanged: onChanged,
+      inputFormatters: inputFormatters,
+      maxLength: maxLength,
       style: const TextStyle(
         fontSize: Sizes.fontSizeMd,
         color: AppColors.texto,

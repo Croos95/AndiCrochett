@@ -17,6 +17,8 @@ class _InventoryPageState extends State<InventoryPage> {
   final TextEditingController _searchController = TextEditingController();
   final InventoryRepository _repo = InventoryRepository();
   String _searchQuery = '';
+  String? _filterCategory;
+  String? _filterStatus;
 
   String get _userId => FirebaseAuth.instance.currentUser?.uid ?? '';
 
@@ -39,10 +41,9 @@ class _InventoryPageState extends State<InventoryPage> {
             existing: existing,
             onSave: (product) async {
               if (existing != null) {
-                await _repo.update(product.copyWith(
-                  id: existing.id,
-                  userId: existing.userId,
-                ));
+                await _repo.update(
+                  product.copyWith(id: existing.id, userId: existing.userId),
+                );
               } else {
                 await _repo.create(product.copyWith(userId: _userId));
               }
@@ -58,8 +59,13 @@ class _InventoryPageState extends State<InventoryPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Sizes.radiusLg),
+        ),
         title: const Text('Eliminar producto'),
-        content: Text('Â¿Eliminar "${product.name}"? Esta acciÃ³n no se puede deshacer.'),
+        content: Text(
+          '¿Eliminar "${product.name}"? Esta acción no se puede deshacer.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -68,7 +74,10 @@ class _InventoryPageState extends State<InventoryPage> {
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'Eliminar',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -92,24 +101,47 @@ class _InventoryPageState extends State<InventoryPage> {
                   stream: _repo.watchByUser(_userId),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.verdeOliva,
+                        ),
+                      );
                     }
 
                     final allProducts = snapshot.data ?? [];
-                    final products = _searchQuery.isEmpty
-                        ? allProducts
-                        : allProducts
-                            .where((p) => p.name
-                                .toLowerCase()
-                                .contains(_searchQuery.toLowerCase()))
-                            .toList();
+                    final products = allProducts.where((p) {
+                      if (_searchQuery.isNotEmpty &&
+                          !p.name.toLowerCase().contains(
+                            _searchQuery.toLowerCase(),
+                          ))
+                        return false;
+                      if (_filterCategory != null &&
+                          p.category != _filterCategory)
+                        return false;
+                      if (_filterStatus != null) {
+                        final statusVal = switch (_filterStatus) {
+                          'available' => ProductStatus.available,
+                          'low_stock' => ProductStatus.lowStock,
+                          'out_of_stock' => ProductStatus.outOfStock,
+                          _ => null,
+                        };
+                        if (statusVal != null && p.status != statusVal) {
+                          return false;
+                        }
+                      }
+                      return true;
+                    }).toList();
 
                     final totalStock = allProducts.fold<int>(
-                        0, (s, p) => s + p.currentStock);
+                      0,
+                      (s, p) => s + p.currentStock,
+                    );
                     final lowCount = allProducts
-                        .where((p) =>
-                            p.status == ProductStatus.lowStock ||
-                            p.status == ProductStatus.outOfStock)
+                        .where(
+                          (p) =>
+                              p.status == ProductStatus.lowStock ||
+                              p.status == ProductStatus.outOfStock,
+                        )
                         .length;
 
                     return Column(
@@ -122,25 +154,27 @@ class _InventoryPageState extends State<InventoryPage> {
                         Expanded(
                           child: Padding(
                             padding: EdgeInsets.all(
-                                isMobile ? Sizes.md : Sizes.lg),
+                              isMobile ? Sizes.md : Sizes.lg,
+                            ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _buildSectionHeader(),
+                                _buildSectionHeader(allProducts),
                                 const SizedBox(height: Sizes.md),
                                 Expanded(
                                   child: products.isEmpty
                                       ? _buildEmptyState()
                                       : isMobile
-                                          ? SingleChildScrollView(
-                                              scrollDirection: Axis.horizontal,
-                                              child: SizedBox(
-                                                width: 860,
-                                                child: _buildInventoryTable(
-                                                    products),
-                                              ),
-                                            )
-                                          : _buildInventoryTable(products),
+                                      ? SingleChildScrollView(
+                                          scrollDirection: Axis.horizontal,
+                                          child: SizedBox(
+                                            width: 1000,
+                                            child: _buildInventoryTable(
+                                              products,
+                                            ),
+                                          ),
+                                        )
+                                      : _buildInventoryTable(products),
                                 ),
                               ],
                             ),
@@ -163,14 +197,29 @@ class _InventoryPageState extends State<InventoryPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.inventory_2_outlined, size: 64, color: AppColors.texto),
+          const Icon(
+            Icons.inventory_2_outlined,
+            size: 64,
+            color: AppColors.border,
+          ),
           const SizedBox(height: Sizes.md),
           Text(
             _searchQuery.isEmpty
-                ? 'No hay productos aÃºn'
+                ? 'No hay productos aún'
                 : 'No se encontraron resultados',
-            style: TextStyle(
-              fontSize: Sizes.fontSizeLg,
+            style: const TextStyle(
+              fontSize: Sizes.fontSizeXl,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textoFuerte,
+            ),
+          ),
+          const SizedBox(height: Sizes.sm),
+          Text(
+            _searchQuery.isEmpty
+                ? 'Agrega tu primer producto con el botón de arriba.'
+                : 'Intenta con otro término de búsqueda.',
+            style: const TextStyle(
+              fontSize: Sizes.fontSizeMd,
               color: AppColors.texto,
             ),
           ),
@@ -197,9 +246,7 @@ class _InventoryPageState extends State<InventoryPage> {
         padding: const EdgeInsets.all(Sizes.md),
         decoration: const BoxDecoration(
           color: AppColors.background,
-          border: Border(
-            bottom: BorderSide(color: AppColors.lino, width: 1),
-          ),
+          border: Border(bottom: BorderSide(color: AppColors.lino, width: 1)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -207,6 +254,7 @@ class _InventoryPageState extends State<InventoryPage> {
             const Text(
               'Inventario General',
               style: TextStyle(
+                fontFamily: 'Lora',
                 fontSize: Sizes.fontSizeXxl,
                 fontWeight: FontWeight.bold,
                 color: AppColors.textoFuerte,
@@ -256,7 +304,7 @@ class _InventoryPageState extends State<InventoryPage> {
                 onPressed: () => _showProductForm(),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.resaltado,
-                  foregroundColor: AppColors.background,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: Sizes.md),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
@@ -302,10 +350,10 @@ class _InventoryPageState extends State<InventoryPage> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
+                      fontFamily: 'Lora',
                       fontSize: Sizes.fontSizeXxl,
                       fontWeight: FontWeight.bold,
                       color: AppColors.textoFuerte,
-                      letterSpacing: 1.5,
                     ),
                   ),
                 ),
@@ -327,7 +375,7 @@ class _InventoryPageState extends State<InventoryPage> {
                         color: AppColors.texto,
                       ),
                       filled: true,
-                      fillColor: AppColors.background,
+                      fillColor: Colors.white,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(20),
                         borderSide: const BorderSide(color: AppColors.lino),
@@ -366,10 +414,8 @@ class _InventoryPageState extends State<InventoryPage> {
                     onPressed: () => _showProductForm(),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.resaltado,
-                      foregroundColor: AppColors.background,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: Sizes.md,
-                      ),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: Sizes.md),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
@@ -413,7 +459,7 @@ class _InventoryPageState extends State<InventoryPage> {
         vertical: Sizes.sm,
       ),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.2),
+        color: AppColors.lino.withValues(alpha: 0.5),
         border: const Border(
           bottom: BorderSide(color: AppColors.lino, width: 1),
         ),
@@ -429,11 +475,7 @@ class _InventoryPageState extends State<InventoryPage> {
             AppColors.verdeOliva,
           ),
           if (!isMobile) _buildStatDivider(),
-          _buildStatItem(
-            'POR AGOTAR:',
-            lowCount.toString(),
-            AppColors.error,
-          ),
+          _buildStatItem('POR AGOTAR:', lowCount.toString(), AppColors.error),
         ],
       ),
     );
@@ -474,25 +516,213 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  Widget _buildSectionHeader() {
+  static const Map<String, IconData> _categoryIcons = {
+    'Estambre': Icons.adjust,
+    'Hilo': Icons.linear_scale,
+    'Agujas y Ganchos': Icons.create,
+    'Herramientas': Icons.build,
+    'Accesorios': Icons.stars,
+    'Botones': Icons.radio_button_unchecked,
+    'Relleno': Icons.cloud,
+    'Otro': Icons.category,
+  };
+
+  void _showFilterDialog(BuildContext context, List<ProductModel> allProducts) {
+    final uniqueCategories = allProducts.map((p) => p.category).toSet().toList()
+      ..sort();
+    String? tempCategory = _filterCategory;
+    String? tempStatus = _filterStatus;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Sizes.radiusLg),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.filter_alt_outlined, color: AppColors.verdeOliva),
+              SizedBox(width: 8),
+              Text('Filtrar inventario'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'CATEGORÍA',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                    color: AppColors.texto,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    FilterChip(
+                      label: const Text('Todas'),
+                      selected: tempCategory == null,
+                      onSelected: (_) => setDlg(() => tempCategory = null),
+                      selectedColor: AppColors.verdeOliva.withValues(
+                        alpha: 0.25,
+                      ),
+                    ),
+                    ...uniqueCategories.map(
+                      (c) => FilterChip(
+                        avatar: Icon(
+                          _categoryIcons[c] ?? Icons.category,
+                          size: 14,
+                        ),
+                        label: Text(c),
+                        selected: tempCategory == c,
+                        onSelected: (v) =>
+                            setDlg(() => tempCategory = v ? c : null),
+                        selectedColor: AppColors.verdeOliva.withValues(
+                          alpha: 0.25,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'ESTADO',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                    color: AppColors.texto,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    FilterChip(
+                      label: const Text('Todos'),
+                      selected: tempStatus == null,
+                      onSelected: (_) => setDlg(() => tempStatus = null),
+                      selectedColor: AppColors.verdeOliva.withValues(
+                        alpha: 0.25,
+                      ),
+                    ),
+                    FilterChip(
+                      label: const Text('Disponible'),
+                      selected: tempStatus == 'available',
+                      onSelected: (v) =>
+                          setDlg(() => tempStatus = v ? 'available' : null),
+                      selectedColor: AppColors.success.withValues(alpha: 0.25),
+                    ),
+                    FilterChip(
+                      label: const Text('Bajo stock'),
+                      selected: tempStatus == 'low_stock',
+                      onSelected: (v) =>
+                          setDlg(() => tempStatus = v ? 'low_stock' : null),
+                      selectedColor: AppColors.warning.withValues(alpha: 0.25),
+                    ),
+                    FilterChip(
+                      label: const Text('Sin existencias'),
+                      selected: tempStatus == 'out_of_stock',
+                      onSelected: (v) =>
+                          setDlg(() => tempStatus = v ? 'out_of_stock' : null),
+                      selectedColor: AppColors.error.withValues(alpha: 0.25),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _filterCategory = null;
+                  _filterStatus = null;
+                });
+                Navigator.pop(ctx);
+              },
+              child: const Text('Limpiar filtros'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _filterCategory = tempCategory;
+                  _filterStatus = tempStatus;
+                });
+                Navigator.pop(ctx);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.verdeOliva,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Aplicar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(List<ProductModel> allProducts) {
+    final hasFilter = _filterCategory != null || _filterStatus != null;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text(
-          'STOCK ACTUAL',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
-            color: AppColors.texto,
-            letterSpacing: 1.5,
-          ),
+        Row(
+          children: [
+            const Text(
+              'STOCK ACTUAL',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                color: AppColors.texto,
+                letterSpacing: 1.5,
+              ),
+            ),
+            if (hasFilter) ...[
+              const SizedBox(width: Sizes.sm),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.resaltado.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppColors.resaltado.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Text(
+                  (_filterCategory != null ? 1 : 0) +
+                              (_filterStatus != null ? 1 : 0) ==
+                          1
+                      ? '1 filtro activo'
+                      : '2 filtros activos',
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.resaltado,
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
         IconButton(
-          onPressed: () {},
-          icon: const Icon(Icons.filter_alt_outlined),
+          onPressed: () => _showFilterDialog(context, allProducts),
+          icon: Icon(
+            hasFilter ? Icons.filter_alt : Icons.filter_alt_outlined,
+            color: hasFilter ? AppColors.resaltado : AppColors.texto,
+          ),
           iconSize: 20,
-          color: AppColors.texto,
           splashRadius: 20,
+          tooltip: 'Filtrar inventario',
         ),
       ],
     );
@@ -533,7 +763,8 @@ class _InventoryPageState extends State<InventoryPage> {
                 child: const Row(
                   children: [
                     Expanded(flex: 3, child: _TableHeaderCell('PRODUCTO')),
-                    Expanded(flex: 1, child: _TableHeaderCell('CATEGORÃA')),
+                    Expanded(flex: 1, child: _TableHeaderCell('CATEGORÍA')),
+                    Expanded(flex: 2, child: _TableHeaderCell('MARCA')),
                     Expanded(flex: 2, child: _TableHeaderCell('COLOR')),
                     Expanded(flex: 1, child: _TableHeaderCell('PESO')),
                     Expanded(flex: 2, child: _TableHeaderCell('ESTADO')),
@@ -598,20 +829,23 @@ class _InventoryPageState extends State<InventoryPage> {
                       ),
                       child: product.imageUrl.isNotEmpty
                           ? ClipRRect(
-                              borderRadius:
-                                  BorderRadius.circular(Sizes.radiusMd),
+                              borderRadius: BorderRadius.circular(
+                                Sizes.radiusMd,
+                              ),
                               child: Image.network(
                                 product.imageUrl,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) => Icon(
-                                  Icons.inventory_2,
+                                  _categoryIcons[product.category] ??
+                                      Icons.inventory_2,
                                   color: displayColor,
                                   size: 20,
                                 ),
                               ),
                             )
                           : Icon(
-                              Icons.inventory_2,
+                              _categoryIcons[product.category] ??
+                                  Icons.inventory_2,
                               color: displayColor,
                               size: 20,
                             ),
@@ -619,14 +853,29 @@ class _InventoryPageState extends State<InventoryPage> {
                     const SizedBox(width: Sizes.md),
                     SizedBox(
                       width: 120,
-                      child: Text(
-                        product.name,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: Sizes.fontSizeMd,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textoFuerte,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            product.name,
+                            style: const TextStyle(
+                              fontSize: Sizes.fontSizeMd,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textoFuerte,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (product.brand.isNotEmpty)
+                            Text(
+                              product.brand,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: AppColors.texto.withValues(alpha: 0.7),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                        ],
                       ),
                     ),
                   ],
@@ -636,10 +885,24 @@ class _InventoryPageState extends State<InventoryPage> {
             // Category
             Expanded(
               flex: 1,
+              child: Tooltip(
+                message: product.category,
+                child: Center(
+                  child: Icon(
+                    _categoryIcons[product.category] ?? Icons.category,
+                    color: AppColors.texto,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
+            // Brand
+            Expanded(
+              flex: 2,
               child: Align(
                 alignment: Alignment.center,
                 child: Text(
-                  product.category,
+                  product.brand.isNotEmpty ? product.brand : '—',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: Sizes.fontSizeSm,
@@ -667,7 +930,7 @@ class _InventoryPageState extends State<InventoryPage> {
                     ),
                     const SizedBox(width: Sizes.sm),
                     Text(
-                      product.color.isNotEmpty ? product.color : 'â€”',
+                      product.color.isNotEmpty ? product.color : '—',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: Sizes.fontSizeSm,
@@ -685,7 +948,7 @@ class _InventoryPageState extends State<InventoryPage> {
               child: Align(
                 alignment: Alignment.center,
                 child: Text(
-                  product.weight.isNotEmpty ? product.weight : 'â€”',
+                  product.weight.isNotEmpty ? product.weight : '—',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: Sizes.fontSizeSm,
@@ -698,29 +961,25 @@ class _InventoryPageState extends State<InventoryPage> {
             Expanded(
               flex: 2,
               child: Center(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: statusColor,
-                        shape: BoxShape.circle,
-                      ),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    statusLabel,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: Sizes.fontSizeSm,
+                      fontWeight: FontWeight.w600,
+                      color: statusColor.withValues(alpha: 0.9),
                     ),
-                    const SizedBox(width: Sizes.sm),
-                    Text(
-                      statusLabel,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: statusColor,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
             ),
@@ -778,8 +1037,10 @@ class _InventoryPageState extends State<InventoryPage> {
                       children: [
                         Icon(Icons.delete, size: 16, color: AppColors.error),
                         SizedBox(width: 8),
-                        Text('Eliminar',
-                            style: TextStyle(color: AppColors.error)),
+                        Text(
+                          'Eliminar',
+                          style: TextStyle(color: AppColors.error),
+                        ),
                       ],
                     ),
                   ),

@@ -34,6 +34,7 @@ class ProductModel {
     required this.category,
     this.color = '',
     this.weight = '',
+    this.brand = '',
     required this.currentStock,
     required this.totalStock,
     required this.status,
@@ -49,6 +50,7 @@ class ProductModel {
   final String category;
   final String color;
   final String weight;
+  final String brand;
   final int currentStock;
   final int totalStock;
   final ProductStatus status;
@@ -65,6 +67,7 @@ class ProductModel {
     'category': category,
     'color': color,
     'weight': weight,
+    'brand': brand,
     'currentStock': currentStock,
     'totalStock': totalStock,
     'status': status.firestoreValue,
@@ -83,6 +86,7 @@ class ProductModel {
       category: d['category'] as String? ?? '',
       color: d['color'] as String? ?? '',
       weight: d['weight'] as String? ?? '',
+      brand: d['brand'] as String? ?? '',
       currentStock: (d['currentStock'] as num?)?.toInt() ?? 0,
       totalStock: (d['totalStock'] as num?)?.toInt() ?? 0,
       status: ProductStatusX.fromString(d['status'] as String? ?? ''),
@@ -112,6 +116,7 @@ class ProductModel {
     String? category,
     String? color,
     String? weight,
+    String? brand,
     int? currentStock,
     int? totalStock,
     ProductStatus? status,
@@ -126,6 +131,7 @@ class ProductModel {
     category: category ?? this.category,
     color: color ?? this.color,
     weight: weight ?? this.weight,
+    brand: brand ?? this.brand,
     currentStock: currentStock ?? this.currentStock,
     totalStock: totalStock ?? this.totalStock,
     status: status ?? this.status,

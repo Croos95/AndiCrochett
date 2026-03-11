@@ -112,50 +112,52 @@ class AppButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final button = SizedBox(
-      height: height,
-      width: width,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor,
-          foregroundColor: foregroundColor,
-          elevation: borderColor != null ? 0 : 1,
-          padding: const EdgeInsets.symmetric(horizontal: Sizes.lg),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(Sizes.radiusLg),
-            side: borderColor != null
-                ? BorderSide(color: borderColor!)
-                : BorderSide.none,
-          ),
+    final child = ElevatedButton(
+      onPressed: isLoading ? null : onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: backgroundColor,
+        foregroundColor: foregroundColor,
+        elevation: borderColor != null ? 0 : 1,
+        padding: const EdgeInsets.symmetric(horizontal: Sizes.lg),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Sizes.radiusLg),
+          side: borderColor != null
+              ? BorderSide(color: borderColor!)
+              : BorderSide.none,
         ),
-        child: isLoading
-            ? SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: foregroundColor,
-                ),
-              )
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (icon != null) ...[
-                    Icon(icon, size: 18),
-                    const SizedBox(width: Sizes.sm),
-                  ],
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      fontSize: Sizes.fontSizeMd,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
       ),
+      child: isLoading
+          ? SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: foregroundColor,
+              ),
+            )
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 18),
+                  const SizedBox(width: Sizes.sm),
+                ],
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: Sizes.fontSizeMd,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
     );
-    return button;
+
+    if (width != null) {
+      return SizedBox(height: height, width: width, child: child);
+    }
+    return IntrinsicWidth(
+      child: SizedBox(height: height, child: child),
+    );
   }
 }
