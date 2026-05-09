@@ -21,7 +21,8 @@ class AuthProvider extends ChangeNotifier {
 
   User? _user;
   User? get user => _user;
-  bool get isAuthenticated => _user != null;
+  bool get isAuthenticated => _user != null && _user!.emailVerified;
+  bool get hasVerifiedEmail => _user?.emailVerified ?? false;
 
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
@@ -30,7 +31,7 @@ class AuthProvider extends ChangeNotifier {
 
   void _onAuthStateChanged(User? user) {
     _user = user;
-    _status = user != null
+    _status = user != null && user.emailVerified
         ? AuthStatus.authenticated
         : AuthStatus.unauthenticated;
     notifyListeners();
@@ -42,6 +43,14 @@ class AuthProvider extends ChangeNotifier {
     _setLoading();
     try {
       await _repo.signInWithEmail(email: email, password: password);
+      final verified = await _repo.isEmailVerified();
+      if (!verified) {
+        await _repo.sendVerificationEmail();
+        _setError(
+          'Debes verificar tu correo antes de ingresar. Te reenviamos el enlace.',
+        );
+        return false;
+      }
       _clearError();
       return true;
     } on FirebaseAuthException catch (e) {
@@ -62,6 +71,7 @@ class AuthProvider extends ChangeNotifier {
     _setLoading();
     try {
       await _repo.registerWithEmail(email: email, password: password);
+      await _repo.sendVerificationEmail();
       _clearError();
       return true;
     } on FirebaseAuthException catch (e) {
@@ -77,6 +87,39 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> signOut() async {
     await _repo.signOut();
+  }
+
+  Future<bool> signInWithGoogle() async {
+    _setLoading();
+    try {
+      await _repo.signInWithGoogle();
+      _clearError();
+      return true;
+    } on FirebaseAuthException catch (e) {
+      _setError(AuthRepository.messageFromCode(e.code));
+      return false;
+    } catch (_) {
+      _setError('Ocurrió un error inesperado.');
+      return false;
+    }
+  }
+
+  Future<bool> resendVerificationEmail() async {
+    try {
+      await _repo.sendVerificationEmail();
+      return true;
+    } catch (_) {
+      _setError('No se pudo reenviar el correo de verificación.');
+      return false;
+    }
+  }
+
+  Future<bool> refreshVerificationStatus() async {
+    final verified = await _repo.isEmailVerified();
+    if (verified) {
+      _onAuthStateChanged(_repo.currentUser);
+    }
+    return verified;
   }
 
   // ── Password reset ────────────────────────────────────────────────────────

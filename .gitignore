@@ -74,3 +74,6 @@ macos/Flutter/ephemeral/
 
 # ── Web ────────────────────────────────────────────────────────────────────
 web/firebase-messaging-sw.js
+
+# ── Node / Functions ───────────────────────────────────────────────────────
+functions/node_modules/

@@ -6,11 +6,34 @@ class Env {
   static const String appName = 'AndiCrochett';
   static const String appVersion = '0.1.0';
 
-  // API base URL — reemplaza con tu endpoint real
-  static const String baseUrl = String.fromEnvironment(
-    'BASE_URL',
-    defaultValue: 'http://localhost:3000/api',
-  );
+  // API base URL.
+  // - Desarrollo: usa localhost por defecto.
+  // - Produccion: exige BASE_URL por --dart-define y HTTPS obligatorio.
+  static const String _baseUrlFromEnv = String.fromEnvironment('BASE_URL');
+  static const String _devBaseUrl = 'http://localhost:3000/api';
+
+  static String get baseUrl {
+    final resolvedBaseUrl = _baseUrlFromEnv.isNotEmpty
+        ? _baseUrlFromEnv
+        : (isProduction ? '' : _devBaseUrl);
+
+    if (isProduction) {
+      if (resolvedBaseUrl.isEmpty) {
+        throw StateError(
+          'BASE_URL no esta configurado para produccion. '
+          'Define --dart-define=BASE_URL=https://tu-api-segura.com/api',
+        );
+      }
+      if (!resolvedBaseUrl.startsWith('https://')) {
+        throw StateError(
+          'BASE_URL debe usar HTTPS en produccion. Valor recibido: '
+          '$resolvedBaseUrl',
+        );
+      }
+    }
+
+    return resolvedBaseUrl;
+  }
 
   // Tiempo de espera de peticiones (ms)
   static const int connectTimeout = 10000;

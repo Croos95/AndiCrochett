@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:andicrochett/core/constants/colors.dart';
+import 'package:andicrochett/core/config/routes.dart';
 import 'package:andicrochett/core/constants/sizes.dart';
 import 'package:andicrochett/core/constants/strings.dart';
 import 'package:andicrochett/features/auth/presentation/providers/auth_provider.dart';
@@ -96,76 +98,8 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _handleRegister() async {
-    final emailCtrl = TextEditingController();
-    final passCtrl = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Crear cuenta'),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: emailCtrl,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Correo electrónico',
-                ),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Requerido';
-                  if (!v.contains('@')) return 'Correo inválido';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: passCtrl,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Contraseña'),
-                validator: (v) {
-                  if (v == null || v.isEmpty) return 'Requerida';
-                  if (v.length < 6) return 'Mínimo 6 caracteres';
-                  return null;
-                },
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                Navigator.pop(context, true);
-              }
-            },
-            child: const Text('Crear'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-    final ok = await context.read<AuthProvider>().register(
-      email: emailCtrl.text,
-      password: passCtrl.text,
-    );
     if (!mounted) return;
-    if (!ok) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = context.read<AuthProvider>().errorMessage;
-      });
-    }
+    context.push(AppRoutes.register);
   }
 
   @override
@@ -354,6 +288,22 @@ class _RightPanel extends StatelessWidget {
                   onTogglePassword: onTogglePassword,
                   onSubmit: onSubmit,
                   onForgotPassword: onForgotPassword,
+                  onGoogleSignIn: () async {
+                    final ok = await context
+                        .read<AuthProvider>()
+                        .signInWithGoogle();
+                    if (!context.mounted) return;
+                    if (!ok) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            context.read<AuthProvider>().errorMessage ??
+                                'No se pudo continuar con Google.',
+                          ),
+                        ),
+                      );
+                    }
+                  },
                 ),
                 const SizedBox(height: Sizes.xl),
                 // ── Footer ─────────────────────────────────────────────────
@@ -430,6 +380,7 @@ class _FormCard extends StatelessWidget {
     required this.onTogglePassword,
     required this.onSubmit,
     required this.onForgotPassword,
+    required this.onGoogleSignIn,
   });
 
   final GlobalKey<FormState> formKey;
@@ -441,6 +392,7 @@ class _FormCard extends StatelessWidget {
   final VoidCallback onTogglePassword;
   final Future<void> Function() onSubmit;
   final Future<void> Function() onForgotPassword;
+  final Future<void> Function() onGoogleSignIn;
 
   @override
   Widget build(BuildContext context) {
@@ -602,6 +554,7 @@ class _FormCard extends StatelessWidget {
                   child: _SocialButton(
                     label: 'Google',
                     icon: Icons.g_mobiledata_rounded,
+                    onPressed: onGoogleSignIn,
                   ),
                 ),
                 const SizedBox(width: Sizes.md),
@@ -609,6 +562,7 @@ class _FormCard extends StatelessWidget {
                   child: _SocialButton(
                     label: 'Facebook',
                     icon: Icons.facebook_rounded,
+                    onPressed: null,
                   ),
                 ),
               ],
@@ -732,14 +686,19 @@ class _FilledField extends StatelessWidget {
 }
 
 class _SocialButton extends StatelessWidget {
-  const _SocialButton({required this.label, required this.icon});
+  const _SocialButton({
+    required this.label,
+    required this.icon,
+    this.onPressed,
+  });
   final String label;
   final IconData icon;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
     return OutlinedButton.icon(
-      onPressed: () {},
+      onPressed: onPressed,
       icon: Icon(icon, size: Sizes.iconMd, color: AppColors.textoFuerte),
       label: Text(
         label,

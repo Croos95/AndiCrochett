@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
 import 'package:andicrochett/features/auth/presentation/pages/login_page.dart';
+import 'package:andicrochett/features/auth/presentation/pages/register_page.dart';
 import 'package:andicrochett/features/auth/presentation/providers/auth_provider.dart';
 import 'package:andicrochett/features/dashboard/presentation/pages/dashboard_page.dart';
 
@@ -20,6 +21,7 @@ class AppRoutes {
 
   // ── Nombres de rutas ────────────────────────────────────────────────────────
   static const String login = '/login';
+  static const String register = '/register';
   static const String dashboard = '/dashboard';
 
   // ── Router factory ──────────────────────────────────────────────────────────
@@ -33,12 +35,14 @@ class AppRoutes {
     redirect: (_, state) {
       final loggedIn = authProvider.isAuthenticated;
       final onLogin = state.matchedLocation == login;
-      if (loggedIn && onLogin) return dashboard;
-      if (!loggedIn && !onLogin) return login;
+      final onRegister = state.matchedLocation == register;
+      if (loggedIn && (onLogin || onRegister)) return dashboard;
+      if (!loggedIn && !onLogin && !onRegister) return login;
       return null;
     },
     routes: [
       GoRoute(path: login, builder: (_, __) => const LoginPage()),
+      GoRoute(path: register, builder: (_, __) => const RegisterPage()),
       GoRoute(path: dashboard, builder: (_, __) => const DashboardPage()),
     ],
   );
