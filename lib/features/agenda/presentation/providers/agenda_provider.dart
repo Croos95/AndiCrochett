@@ -42,9 +42,10 @@ class AgendaProvider extends ChangeNotifier {
   /// Pedidos con fecha de entrega para un día específico.
   List<OrderModel> ordersForDay(DateTime day) {
     return _orders.where((o) {
-      return o.dueDate.year == day.year &&
-          o.dueDate.month == day.month &&
-          o.dueDate.day == day.day;
+      final dueDate = o.dueDate ?? o.createdAt;
+      return dueDate.year == day.year &&
+          dueDate.month == day.month &&
+          dueDate.day == day.day;
     }).toList();
   }
 

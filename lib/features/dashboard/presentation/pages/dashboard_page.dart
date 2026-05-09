@@ -30,13 +30,6 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   /// Construye el widget de contenido según la ruta activa del sidebar.
-  ///
-  /// Notas de cada ruta:
-  ///   'home'      → Resumen con datos en tiempo real desde Firestore.
-  ///   'inventory' → Pantalla de inventario.
-  ///   'agenda'    → Pantalla de agenda / pedidos.
-  ///   'designs'   → Pantalla de diseños con Firestore activo.
-  ///   'profile'   → ProfilePage.
   Widget _buildContent() {
     return switch (_selectedRoute) {
       'home' => const _HomeView(),
@@ -57,19 +50,15 @@ class _DashboardPageState extends State<DashboardPage> {
           final isWide = constraints.maxWidth >= 900;
 
           if (isWide) {
-            // Layout de escritorio con grid
             return Row(
               children: [
-                // div1: Menú lateral animado
                 SidebarMenu(
                   selectedRoute: _selectedRoute,
                   onRouteSelected: _onMenuItemSelected,
                 ),
-                // div2 y div3: Contenido principal + footer (4 columnas de 5)
                 Expanded(
                   child: Column(
                     children: [
-                      // div2: Área de contenido (4 filas de 5)
                       Expanded(
                         flex: 4,
                         child: Container(
@@ -77,7 +66,6 @@ class _DashboardPageState extends State<DashboardPage> {
                           child: _buildContent(),
                         ),
                       ),
-                      // div3: Footer (1 fila de 5)
                       const SizedBox(height: 60, child: DashboardFooter()),
                     ],
                   ),
@@ -85,7 +73,6 @@ class _DashboardPageState extends State<DashboardPage> {
               ],
             );
           } else {
-            // Layout móvil con Drawer
             return Scaffold(
               appBar: AppBar(
                 backgroundColor: AppColors.verdeOliva,
@@ -115,7 +102,6 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 }
 
-// Panel principal con datos en tiempo real
 class _HomeView extends StatefulWidget {
   const _HomeView();
 
@@ -152,8 +138,9 @@ class _HomeViewState extends State<_HomeView> {
             spacing: Sizes.md,
             runSpacing: Sizes.md,
             children: [
-              StreamBuilder(
-                stream: _inventoryRepo.watchByUser(uid),
+              // Añadido <List<dynamic>> para resolver el error de .length
+              StreamBuilder<List<dynamic>>(
+                stream: _inventoryRepo.watchByUser(uid), 
                 builder: (_, snap) => _DashboardCard(
                   title: 'Inventario',
                   value: '${snap.data?.length ?? 0}',
@@ -162,18 +149,13 @@ class _HomeViewState extends State<_HomeView> {
                   icon: Icons.inventory_2,
                 ),
               ),
-              StreamBuilder(
+              // Añadido <List<OrderModel>> para resolver el error en .where() y .length
+              StreamBuilder<List<OrderModel>>(
                 stream: _agendaRepo.watchByUser(uid),
                 builder: (_, snap) {
-                  final pending =
-                      snap.data
-                          ?.where(
-                            (o) =>
-                                o.status == OrderStatus.pending ||
-                                o.status == OrderStatus.inProgress,
-                          )
-                          .length ??
-                      0;
+                  final pending = snap.data?.where(
+                        (o) => o.status == OrderStatus.pending || o.status == OrderStatus.inProgress,
+                      ).length ?? 0;
                   return _DashboardCard(
                     title: 'Pedidos',
                     value: '$pending',
@@ -183,7 +165,8 @@ class _HomeViewState extends State<_HomeView> {
                   );
                 },
               ),
-              StreamBuilder(
+              // Añadido <List<dynamic>> para resolver el error de .length
+              StreamBuilder<List<dynamic>>(
                 stream: _patternRepo.watchByUser(uid),
                 builder: (_, snap) => _DashboardCard(
                   title: 'Patrones',
@@ -232,7 +215,7 @@ class _DashboardCard extends StatelessWidget {
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
+              color: color.withOpacity(0.15), // Cambiado a withOpacity para mayor compatibilidad
               borderRadius: BorderRadius.circular(Sizes.radiusMd),
             ),
             child: Icon(icon, color: color, size: 32),

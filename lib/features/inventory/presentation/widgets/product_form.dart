@@ -30,6 +30,8 @@ class ProductForm extends StatefulWidget {
 class _ProductFormState extends State<ProductForm> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
+  late final TextEditingController _descriptionCtrl;
+  late final TextEditingController _priceCtrl;
   late final TextEditingController _colorCtrl;
   late final TextEditingController _weightCtrl;
   late final TextEditingController _brandCtrl;
@@ -68,14 +70,13 @@ class _ProductFormState extends State<ProductForm> {
     super.initState();
     final e = widget.existing;
     _nameCtrl = TextEditingController(text: e?.name ?? '');
+    _descriptionCtrl = TextEditingController(text: e?.description ?? '');
+    _priceCtrl = TextEditingController(text: e?.price.toString() ?? '');
     _colorCtrl = TextEditingController(text: e?.color ?? '');
     _weightCtrl = TextEditingController(text: e?.weight ?? '');
     _brandCtrl = TextEditingController(text: e?.brand ?? '');
     _currentStockCtrl = TextEditingController(
       text: e != null ? e.currentStock.toString() : '',
-    );
-    _totalStockCtrl = TextEditingController(
-      text: e != null ? e.totalStock.toString() : '',
     );
     _category = e?.category ?? 'Estambre';
     _colorPreview = _parseColor(e?.color);
@@ -86,10 +87,11 @@ class _ProductFormState extends State<ProductForm> {
       _markDirty();
     });
     _nameCtrl.addListener(_markDirty);
+    _descriptionCtrl.addListener(_markDirty);
+    _priceCtrl.addListener(_markDirty);
     _weightCtrl.addListener(_markDirty);
     _brandCtrl.addListener(_markDirty);
     _currentStockCtrl.addListener(_markDirty);
-    _totalStockCtrl.addListener(_markDirty);
   }
 
   void _markDirty() {
@@ -109,11 +111,12 @@ class _ProductFormState extends State<ProductForm> {
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _descriptionCtrl.dispose();
+    _priceCtrl.dispose();
     _colorCtrl.dispose();
     _weightCtrl.dispose();
     _brandCtrl.dispose();
     _currentStockCtrl.dispose();
-    _totalStockCtrl.dispose();
     super.dispose();
   }
 
@@ -154,45 +157,33 @@ class _ProductFormState extends State<ProductForm> {
       return;
     }
 
-    final currentStock = int.parse(_currentStockCtrl.text.trim());
-    final totalStock = int.parse(_totalStockCtrl.text.trim());
-
-    // Cross-field validation (double-check beyond inline validator)
-    if (currentStock > totalStock) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('El stock actual no puede superar el stock total'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
     setState(() => _saving = true);
 
+    final currentStock = int.parse(_currentStockCtrl.text.trim());
+    final price = double.parse(_priceCtrl.text.trim());
+
+    // Determinar estado del stock
     final ProductStatus status;
     if (currentStock == 0) {
       status = ProductStatus.outOfStock;
-    } else if (currentStock <= (totalStock * 0.2).ceil()) {
+    } else if (currentStock <= 5) {
       status = ProductStatus.lowStock;
     } else {
       status = ProductStatus.available;
     }
 
     final product = ProductModel(
-      id: widget.existing?.id ?? '',
-      userId: widget.existing?.userId ?? '',
+      id: widget.existing?.id,
       name: _nameCtrl.text.trim(),
+      description: _descriptionCtrl.text.trim(),
+      price: price,
       imageUrl: widget.existing?.imageUrl ?? '',
       category: _category,
       color: _colorCtrl.text.trim(),
       weight: _weightCtrl.text.trim(),
       brand: _brandCtrl.text.trim(),
       currentStock: currentStock,
-      totalStock: totalStock,
       status: status,
-      isPublic: widget.existing?.isPublic ?? false,
       createdAt: widget.existing?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     );

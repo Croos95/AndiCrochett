@@ -45,10 +45,12 @@ class _CalendarWidgetState extends State<CalendarWidget> {
   }
 
   bool _hasOrders(DateTime day) {
-    return widget.orders.any((o) =>
-        o.dueDate.year == day.year &&
-        o.dueDate.month == day.month &&
-        o.dueDate.day == day.day);
+    return widget.orders.any((o) {
+      final dueDate = o.dueDate ?? o.createdAt;
+      return dueDate.year == day.year &&
+          dueDate.month == day.month &&
+          dueDate.day == day.day;
+    });
   }
 
   bool _isSelected(DateTime day) {

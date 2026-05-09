@@ -81,7 +81,7 @@ class _AgendaPageState extends State<AgendaPage> {
         ],
       ),
     );
-    if (confirmed == true) await _repo.delete(order.id);
+    if (confirmed == true && order.id != null) await _repo.delete(order.id!);
   }
 
   @override
@@ -92,10 +92,12 @@ class _AgendaPageState extends State<AgendaPage> {
         final allOrders = snapshot.data ?? [];
         final dayOrders = allOrders
             .where(
-              (o) =>
-                  o.dueDate.year == _selectedDay.year &&
-                  o.dueDate.month == _selectedDay.month &&
-                  o.dueDate.day == _selectedDay.day,
+              (o) {
+                final dueDate = o.dueDate ?? o.createdAt;
+                return dueDate.year == _selectedDay.year &&
+                    dueDate.month == _selectedDay.month &&
+                    dueDate.day == _selectedDay.day;
+              },
             )
             .toList();
 
@@ -306,7 +308,9 @@ class _AgendaPageState extends State<AgendaPage> {
           (order) => _OrderCard(
             order: order,
             onTap: () => _showOrderForm(existing: order),
-            onStatusChange: (status) => _repo.updateStatus(order.id, status),
+            onStatusChange: (status) {
+              if (order.id != null) _repo.updateStatus(order.id!, status);
+            },
             onDelete: () => _confirmDelete(order),
           ),
         ),

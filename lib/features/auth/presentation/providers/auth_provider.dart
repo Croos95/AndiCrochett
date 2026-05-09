@@ -70,15 +70,27 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     _setLoading();
     try {
+      // 1. Crear la cuenta en Firebase
       await _repo.registerWithEmail(email: email, password: password);
-      await _repo.sendVerificationEmail();
+
+      // 2. Enviar email de verificación
+      try {
+        await _repo.sendVerificationEmail();
+      } on FirebaseAuthException catch (e) {
+        // Si falla el envío, aún así registramos al usuario pero mostramos un error
+        _setError(
+          'Cuenta creada, pero no pudimos enviar el correo: ${e.message}. Intenta reenviar desde la siguiente pantalla.',
+        );
+        return false;
+      }
+
       _clearError();
       return true;
     } on FirebaseAuthException catch (e) {
       _setError(AuthRepository.messageFromCode(e.code));
       return false;
-    } catch (_) {
-      _setError('Ocurrió un error inesperado.');
+    } catch (e) {
+      _setError('Ocurrió un error inesperado: $e');
       return false;
     }
   }
@@ -107,9 +119,15 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> resendVerificationEmail() async {
     try {
       await _repo.sendVerificationEmail();
+      _clearError();
       return true;
-    } catch (_) {
-      _setError('No se pudo reenviar el correo de verificación.');
+    } on FirebaseAuthException catch (e) {
+      _setError(
+        'No se pudo reenviar el correo: ${e.message ?? e.code}. Verifica tu conexión.',
+      );
+      return false;
+    } catch (e) {
+      _setError('Error al reenviar el correo: $e');
       return false;
     }
   }

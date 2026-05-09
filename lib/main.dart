@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:andicrochett/core/config/routes.dart';
 import 'package:andicrochett/core/config/theme.dart';
 import 'package:andicrochett/features/auth/presentation/providers/auth_provider.dart';
+import 'package:andicrochett/features/inventory/presentation/providers/inventory_provider.dart';
 import 'firebase_options.dart';
 
 late final GoRouter _router;
@@ -19,7 +20,13 @@ void main() async {
   _router = AppRoutes.createRouter(authProvider);
 
   runApp(
-    ChangeNotifierProvider.value(value: authProvider, child: const MainApp()),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: authProvider),
+        ChangeNotifierProvider(create: (_) => InventoryProvider()),
+      ],
+      child: const MainApp(),
+    ),
   );
 }
 

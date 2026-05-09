@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 enum ProductStatus { available, lowStock, outOfStock }
@@ -10,7 +9,7 @@ extension ProductStatusX on ProductStatus {
     ProductStatus.outOfStock => 'Sin existencias',
   };
 
-  String get firestoreValue => switch (this) {
+  String get sqliteValue => switch (this) {
     ProductStatus.available => 'available',
     ProductStatus.lowStock => 'low_stock',
     ProductStatus.outOfStock => 'out_of_stock',
@@ -23,120 +22,114 @@ extension ProductStatusX on ProductStatus {
   };
 }
 
-/// Producto del inventario.
+/// Producto del inventario (optimizado para SQLite).
 @immutable
 class ProductModel {
   const ProductModel({
-    required this.id,
-    required this.userId,
+    this.id,
     required this.name,
+    this.description = '',
+    required this.price,
     this.imageUrl = '',
-    required this.category,
+    this.category = '',
     this.color = '',
     this.weight = '',
     this.brand = '',
     required this.currentStock,
-    required this.totalStock,
-    required this.status,
-    this.isPublic = false,
-    required this.createdAt,
-    required this.updatedAt,
+    this.status = ProductStatus.available,
+    this.createdAt,
+    this.updatedAt,
   });
 
-  final String id;
-  final String userId;
+  final int? id;
   final String name;
+  final String description;
+  final double price;
   final String imageUrl;
   final String category;
   final String color;
   final String weight;
   final String brand;
   final int currentStock;
-  final int totalStock;
   final ProductStatus status;
-  final bool isPublic;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
-  // ── Serialización ─────────────────────────────────────────────────────────
-
-  Map<String, dynamic> toMap() => {
-    'userId': userId,
-    'name': name,
-    'imageUrl': imageUrl,
-    'category': category,
-    'color': color,
-    'weight': weight,
-    'brand': brand,
-    'currentStock': currentStock,
-    'totalStock': totalStock,
-    'status': status.firestoreValue,
-    'isPublic': isPublic,
-    'createdAt': Timestamp.fromDate(createdAt),
-    'updatedAt': Timestamp.fromDate(updatedAt),
-  };
-
-  factory ProductModel.fromDoc(DocumentSnapshot doc) {
-    final d = doc.data() as Map<String, dynamic>;
-    return ProductModel(
-      id: doc.id,
-      userId: d['userId'] as String? ?? '',
-      name: d['name'] as String? ?? '',
-      imageUrl: d['imageUrl'] as String? ?? '',
-      category: d['category'] as String? ?? '',
-      color: d['color'] as String? ?? '',
-      weight: d['weight'] as String? ?? '',
-      brand: d['brand'] as String? ?? '',
-      currentStock: (d['currentStock'] as num?)?.toInt() ?? 0,
-      totalStock: (d['totalStock'] as num?)?.toInt() ?? 0,
-      status: ProductStatusX.fromString(d['status'] as String? ?? ''),
-      isPublic: d['isPublic'] as bool? ?? false,
-      createdAt: (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      updatedAt: (d['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-    );
-  }
-
-  factory ProductModel.empty({required String userId}) => ProductModel(
-    id: '',
-    userId: userId,
-    name: '',
-    category: 'Lana',
-    currentStock: 0,
-    totalStock: 0,
-    status: ProductStatus.available,
-    createdAt: DateTime.now(),
-    updatedAt: DateTime.now(),
-  );
+  // ── Métodos de copia ──────────────────────────────────────────────────────
 
   ProductModel copyWith({
-    String? id,
-    String? userId,
+    int? id,
     String? name,
+    String? description,
+    double? price,
     String? imageUrl,
     String? category,
     String? color,
     String? weight,
     String? brand,
     int? currentStock,
-    int? totalStock,
     ProductStatus? status,
-    bool? isPublic,
     DateTime? createdAt,
     DateTime? updatedAt,
-  }) => ProductModel(
-    id: id ?? this.id,
-    userId: userId ?? this.userId,
-    name: name ?? this.name,
-    imageUrl: imageUrl ?? this.imageUrl,
-    category: category ?? this.category,
-    color: color ?? this.color,
-    weight: weight ?? this.weight,
-    brand: brand ?? this.brand,
-    currentStock: currentStock ?? this.currentStock,
-    totalStock: totalStock ?? this.totalStock,
-    status: status ?? this.status,
-    isPublic: isPublic ?? this.isPublic,
-    createdAt: createdAt ?? this.createdAt,
-    updatedAt: updatedAt ?? this.updatedAt,
+  }) =>
+      ProductModel(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        description: description ?? this.description,
+        price: price ?? this.price,
+        imageUrl: imageUrl ?? this.imageUrl,
+        category: category ?? this.category,
+        color: color ?? this.color,
+        weight: weight ?? this.weight,
+        brand: brand ?? this.brand,
+        currentStock: currentStock ?? this.currentStock,
+        status: status ?? this.status,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+
+  // ── Serialización para SQLite ─────────────────────────────────────────────
+
+  Map<String, dynamic> toMap() => {
+    if (id != null) 'id': id,
+    'nombre': name,
+    'descripcion': description,
+    'precio': price,
+    'imagen': imageUrl,
+    'categoria': category,
+    'color': color,
+    'peso': weight,
+    'marca': brand,
+    'cantidad': currentStock,
+    'estado': status.sqliteValue,
+    'fecha_creacion': createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
+    'fecha_actualizacion': updatedAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
+  };
+
+  /// Convierte desde Map de SQLite a ProductModel
+  factory ProductModel.fromMap(Map<String, dynamic> map) => ProductModel(
+    id: map['id'] as int?,
+    name: map['nombre'] as String? ?? '',
+    description: map['descripcion'] as String? ?? '',
+    price: (map['precio'] as num?)?.toDouble() ?? 0.0,
+    imageUrl: map['imagen'] as String? ?? '',
+    category: map['categoria'] as String? ?? '',
+    color: map['color'] as String? ?? '',
+    weight: map['peso'] as String? ?? '',
+    brand: map['marca'] as String? ?? '',
+    currentStock: (map['cantidad'] as num?)?.toInt() ?? 0,
+    status: ProductStatusX.fromString(map['estado'] as String? ?? 'available'),
+    createdAt: map['fecha_creacion'] != null
+        ? DateTime.tryParse(map['fecha_creacion'] as String)
+        : null,
+    updatedAt: map['fecha_actualizacion'] != null
+        ? DateTime.tryParse(map['fecha_actualizacion'] as String)
+        : null,
+  );
+
+  factory ProductModel.empty() => const ProductModel(
+    name: '',
+    price: 0.0,
+    currentStock: 0,
   );
 }

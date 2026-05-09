@@ -1,23 +1,17 @@
-import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:andicrochett/features/inventory/data/models/product_model.dart';
 import 'package:andicrochett/features/inventory/data/repositories/inventory_repository.dart';
 
 enum InventoryStatus { initial, loading, loaded, error }
 
-/// ChangeNotifier para la gestión del estado del inventario.
+/// ChangeNotifier para la gestión del estado del inventario con SQLite.
 class InventoryProvider extends ChangeNotifier {
-  InventoryProvider({
-    required String userId,
-    InventoryRepository? repository,
-  })  : _userId = userId,
-        _repo = repository ?? InventoryRepository() {
+  InventoryProvider({InventoryRepository? repository})
+      : _repo = repository ?? InventoryRepository() {
     _init();
   }
 
-  final String _userId;
   final InventoryRepository _repo;
-  StreamSubscription<List<ProductModel>>? _sub;
 
   InventoryStatus _status = InventoryStatus.initial;
   InventoryStatus get status => _status;
@@ -25,62 +19,106 @@ class InventoryProvider extends ChangeNotifier {
   List<ProductModel> _products = [];
   List<ProductModel> get products => _products;
 
+  List<ProductModel> _lowStockProducts = [];
+  List<ProductModel> get lowStockProducts => _lowStockProducts;
+
+  List<ProductModel> _outOfStockProducts = [];
+  List<ProductModel> get outOfStockProducts => _outOfStockProducts;
+
   String? _error;
   String? get error => _error;
 
   // ── Getters de conveniencia ────────────────────────────────────────────
 
-  List<ProductModel> get lowStockProducts =>
-      _products.where((p) => p.status == ProductStatus.lowStock).toList();
-
-  List<ProductModel> get outOfStockProducts =>
-      _products.where((p) => p.status == ProductStatus.outOfStock).toList();
-
-  int get totalStock =>
-      _products.fold<int>(0, (sum, p) => sum + p.currentStock);
+  int get totalProducts => _products.length;
+  int get totalStock => _products.fold<int>(0, (sum, p) => sum + p.currentStock);
 
   // ── Inicialización ────────────────────────────────────────────────────────
 
   void _init() {
+    loadProducts();
+  }
+
+  // ── Operaciones ───────────────────────────────────────────────────────────
+
+  /// Carga todos los productos desde SQLite.
+  Future<void> loadProducts() async {
     _status = InventoryStatus.loading;
     notifyListeners();
 
-    _sub = _repo.watchByUser(_userId).listen(
-      (data) {
-        _products = data;
-        _status = InventoryStatus.loaded;
-        _error = null;
-        notifyListeners();
-      },
-      onError: (e) {
-        _status = InventoryStatus.error;
-        _error = e.toString();
-        notifyListeners();
-      },
-    );
+    try {
+      _products = await _repo.getAllProducts();
+      _lowStockProducts = await _repo.getLowStockProducts();
+      _outOfStockProducts = await _repo.getOutOfStockProducts();
+      _status = InventoryStatus.loaded;
+      _error = null;
+    } catch (e) {
+      _status = InventoryStatus.error;
+      _error = e.toString();
+    }
+    notifyListeners();
   }
 
-  // ── Operaciones CRUD ──────────────────────────────────────────────────────
-
-  Future<String> addProduct(ProductModel product) async {
-    return _repo.create(product.copyWith(userId: _userId));
+  /// Agrega un nuevo producto.
+  Future<bool> addProduct(ProductModel product) async {
+    try {
+      await _repo.createProduct(product);
+      await loadProducts(); // Recarga la lista
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
   }
 
-  Future<void> updateProduct(ProductModel product) async {
-    await _repo.update(product);
+  /// Actualiza un producto existente.
+  Future<bool> updateProduct(ProductModel product) async {
+    try {
+      await _repo.updateProduct(product);
+      await loadProducts(); // Recarga la lista
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
   }
 
-  Future<void> deleteProduct(String id) async {
-    await _repo.delete(id);
+  /// Elimina un producto.
+  Future<bool> deleteProduct(int id) async {
+    try {
+      await _repo.deleteProduct(id);
+      await loadProducts(); // Recarga la lista
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
   }
 
-  Future<void> updateStock(String id, int delta) async {
-    await _repo.updateStock(id, delta);
+  /// Ajusta el stock de un producto.
+  Future<bool> adjustStock(int productId, int delta) async {
+    try {
+      await _repo.adjustStock(productId, delta);
+      await loadProducts(); // Recarga la lista
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
   }
 
-  @override
-  void dispose() {
-    _sub?.cancel();
-    super.dispose();
+  /// Obtiene un producto por ID.
+  Future<ProductModel?> getProductById(int id) async {
+    try {
+      return await _repo.getProductById(id);
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return null;
+    }
   }
 }
