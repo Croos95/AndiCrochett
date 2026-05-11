@@ -1,16 +1,36 @@
-// =============================================================================
-//  UserModel
-//  DTO de Firestore para el perfil extendido del usuario.
-//
-//  Firebase Auth provee el UID, email y displayName básicos.
-//  Este modelo mapea el documento 'users/{uid}' que contiene preferencias,
-//  foto de perfil, fecha de creación y configuración de la aplicación.
-// =============================================================================
-
 import 'package:flutter/foundation.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert';
 
-/// Perfil extendido almacenado en Firestore bajo 'users/{uid}'.
+//lib/features/auth/data/models/user_model.dart
+@immutable
+class UserSettings {
+  final String theme;
+  final String language;
+  final bool notifications;
+
+  const UserSettings({
+    this.theme = 'light',
+    this.language = 'es',
+    this.notifications = true,
+  });
+
+  // Convertimos a Map para guardar en un solo campo de texto en SQLite
+  Map<String, dynamic> toMap() => {
+    'theme': theme,
+    'language': language,
+    'notifications': notifications,
+  };
+
+  factory UserSettings.fromMap(Map<String, dynamic> map) {
+    return UserSettings(
+      theme: map['theme'] ?? 'light',
+      language: map['language'] ?? 'es',
+      notifications: map['notifications'] == 1 || map['notifications'] == true,
+    );
+  }
+}
+
+/// Perfil extendido del usuario almacenado en SQLite.
 @immutable
 class UserModel {
   const UserModel({
@@ -32,35 +52,55 @@ class UserModel {
   final DateTime createdAt;
   final DateTime updatedAt;
   final UserSettings settings;
-
-  // ── Serialización ─────────────────────────────────────────────────────────
+  // ── Serialización para SQLite ──────────────────────────────────────────────
 
   Map<String, dynamic> toMap() => {
+    'uid': uid,
     'email': email,
-    'displayName': displayName,
-    'photoUrl': photoUrl,
-    'authProvider': authProvider,
-    'createdAt': Timestamp.fromDate(createdAt),
-    'updatedAt': Timestamp.fromDate(updatedAt),
-    'settings': settings.toMap(),
+    'display_name': displayName,
+    'photo_url': photoUrl,
+    'auth_provider': authProvider,
+    'fecha_creacion': createdAt.toIso8601String(),
+    'fecha_actualizacion': updatedAt.toIso8601String(),
+    'settings': jsonEncode(settings.toMap()), // Guardamos como String
   };
 
-  factory UserModel.fromDoc(DocumentSnapshot doc) {
-    final d = doc.data() as Map<String, dynamic>;
+  factory UserModel.fromMap(Map<String, dynamic> map) {
+    // Decodificamos el JSON de settings si existe
+    UserSettings s = const UserSettings();
+    if (map['settings'] != null) {
+      try {
+        s = UserSettings.fromMap(jsonDecode(map['settings']));
+      } catch (_) {}
+    }
+
     return UserModel(
-      uid: doc.id,
-      email: d['email'] as String? ?? '',
-      displayName: d['displayName'] as String? ?? '',
-      photoUrl: d['photoUrl'] as String? ?? '',
-      authProvider: d['authProvider'] as String? ?? 'email',
-      createdAt: (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      updatedAt: (d['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      settings: d['settings'] != null
-          ? UserSettings.fromMap(d['settings'] as Map<String, dynamic>)
-          : const UserSettings(),
+      uid: map['uid'] as String? ?? '',
+      email: map['email'] as String? ?? '',
+      displayName: map['display_name'] as String? ?? '',
+      photoUrl: map['photo_url'] as String? ?? '',
+      authProvider: map['auth_provider'] as String? ?? 'email',
+      createdAt: _parseDate(map['fecha_creacion']),
+      updatedAt: _parseDate(map['fecha_actualizacion']),
+      settings: s,
     );
   }
 
+  static DateTime _parseDate(dynamic value) {
+    if (value == null) return DateTime.now();
+    if (value is DateTime) return value;
+    if (value is String) {
+      try {
+        return DateTime.parse(value);
+      } catch (_) {
+        return DateTime.now();
+      }
+    }
+    return DateTime.now();
+  }
+
+  //el copyWith para facilitar actualizaciones parciales del perfil
+  //osea que si solo quiero cambiar el displayName, no tengo que pasar todo lo demás
   UserModel copyWith({
     String? uid,
     String? email,
@@ -80,40 +120,19 @@ class UserModel {
     updatedAt: updatedAt ?? this.updatedAt,
     settings: settings ?? this.settings,
   );
-}
 
-/// Preferencias del usuario almacenadas como sub-documento en 'settings'.
-@immutable
-class UserSettings {
-  const UserSettings({
-    this.theme = 'light',
-    this.language = 'es',
-    this.notifications = true,
-  });
+  @override
+  String toString() =>
+      'UserModel(uid: $uid, email: $email, displayName: $displayName)';
 
-  final String theme;
-  final String language;
-  final bool notifications;
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UserModel &&
+          runtimeType == other.runtimeType &&
+          uid == other.uid &&
+          email == other.email;
 
-  Map<String, dynamic> toMap() => {
-    'theme': theme,
-    'language': language,
-    'notifications': notifications,
-  };
-
-  factory UserSettings.fromMap(Map<String, dynamic> map) => UserSettings(
-    theme: map['theme'] as String? ?? 'light',
-    language: map['language'] as String? ?? 'es',
-    notifications: map['notifications'] as bool? ?? true,
-  );
-
-  UserSettings copyWith({
-    String? theme,
-    String? language,
-    bool? notifications,
-  }) => UserSettings(
-    theme: theme ?? this.theme,
-    language: language ?? this.language,
-    notifications: notifications ?? this.notifications,
-  );
+  @override
+  int get hashCode => uid.hashCode ^ email.hashCode;
 }

@@ -1,16 +1,36 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-
+import 'package:andicrochett/features/agenda/data/models/order_model.dart';
+import 'package:andicrochett/features/designs/data/models/design_model.dart';
+//lib/database_helper.dart
 class DatabaseHelper {
   // Configuración de la base de datos
   static const _databaseName = "andicrochett.db";
-  static const _databaseVersion = 2;
+  static const _databaseVersion = 6;
+  
+  // Nueva columna para preferencias de usuario
+  static const userSettings = 'settings'; 
+
+  // Nueva columna para guardar ítems como JSON 
+  static const orderItemsJson = 'items_json';
 
   // ============ TABLAS ============
+  static const tableUsers = 'usuarios';
   static const tableProducts = 'productos';
   static const tableOrders = 'pedidos';
   static const tableOrderItems = 'items_pedido';
   static const tableClients = 'clientes';
+  static const tableDesigns = 'designs';
+
+  // ============ COLUMNAS - USUARIOS ============
+  static const userId = 'id';
+  static const userUid = 'uid';
+  static const userEmail = 'email';
+  static const userDisplayName = 'display_name';
+  static const userPhotoUrl = 'photo_url';
+  static const userAuthProvider = 'auth_provider';
+  static const userCreatedAt = 'fecha_creacion';
+  static const userUpdatedAt = 'fecha_actualizacion';
 
   // ============ COLUMNAS - PRODUCTOS ============
   static const productId = 'id';
@@ -29,10 +49,14 @@ class DatabaseHelper {
 
   // ============ COLUMNAS - PEDIDOS ============
   static const orderId = 'id';
+  static const orderUserId = 'usuario_id';
   static const orderClientId = 'cliente_id';
   static const orderDate = 'fecha_pedido';
+  static const orderDueDate = 'fecha_entrega';
   static const orderTotal = 'total';
   static const orderStatus = 'estado';
+  static const orderNotes = 'notas';
+  static const orderContacto = 'contacto_cliente';
 
   // ============ COLUMNAS - ITEMS DE PEDIDOS ============
   static const orderItemId = 'id';
@@ -48,6 +72,14 @@ class DatabaseHelper {
   static const clientEmail = 'email';
   static const clientPhone = 'telefono';
   static const clientAddress = 'direccion';
+
+  // ============ COLUMNAS - DESIGNS ============
+  static const designId = 'id';
+  static const designName = 'nombre';
+  static const designDescription = 'descripcion';
+  static const designUserId = 'usuario_id';
+  static const designCreatedAt = 'fecha_creacion';
+  static const designUpdatedAt = 'fecha_actualizacion';
 
   // Singleton
   DatabaseHelper._privateConstructor();
@@ -74,6 +106,20 @@ class DatabaseHelper {
 
   // Crea las tablas
   Future<void> _onCreate(Database db, int version) async {
+    await db.execute('''
+      CREATE TABLE $tableUsers (
+        $userId INTEGER PRIMARY KEY AUTOINCREMENT,
+        $userUid TEXT NOT NULL UNIQUE,
+        $userEmail TEXT NOT NULL UNIQUE,
+        $userDisplayName TEXT DEFAULT '',
+        $userPhotoUrl TEXT DEFAULT '',
+        $userAuthProvider TEXT DEFAULT 'email',
+        $userSettings TEXT DEFAULT '{}', -- Nueva columna
+        $userCreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        $userUpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    ''');
+
     // Tabla de Productos (con todos los campos del ProductModel)
     await db.execute('''
       CREATE TABLE $tableProducts (
@@ -105,13 +151,18 @@ class DatabaseHelper {
     ''');
 
     // Tabla de Pedidos
-    await db.execute('''
+   await db.execute('''
       CREATE TABLE $tableOrders (
         $orderId INTEGER PRIMARY KEY AUTOINCREMENT,
-        $orderClientId INTEGER NOT NULL,
+        $orderUserId TEXT NOT NULL,
+        $orderClientId INTEGER,
         $orderDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        $orderDueDate TIMESTAMP,
         $orderTotal REAL NOT NULL,
         $orderStatus TEXT DEFAULT 'pending',
+        $orderNotes TEXT DEFAULT '',
+        $orderContacto TEXT DEFAULT '',
+        $orderItemsJson TEXT DEFAULT '[]',
         FOREIGN KEY ($orderClientId) REFERENCES $tableClients($clientId) ON DELETE CASCADE
       )
     ''');
@@ -127,6 +178,18 @@ class DatabaseHelper {
         $orderItemUnitPrice REAL NOT NULL,
         FOREIGN KEY ($orderItemOrderId) REFERENCES $tableOrders($orderId) ON DELETE CASCADE,
         FOREIGN KEY ($orderItemProductId) REFERENCES $tableProducts($productId)
+      )
+    ''');
+
+    // Tabla de Designs
+    await db.execute('''
+      CREATE TABLE $tableDesigns (
+        $designId INTEGER PRIMARY KEY AUTOINCREMENT,
+        $designName TEXT NOT NULL,
+        $designDescription TEXT DEFAULT '',
+        $designUserId TEXT NOT NULL,
+        $designCreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        $designUpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     ''');
   }
@@ -173,6 +236,61 @@ class DatabaseHelper {
         ''');
       } catch (_) {}
     }
+
+    if (oldVersion < 3) {
+      // Migración de v2 a v3: Crear tabla de usuarios
+      try {
+        await db.execute('''
+          CREATE TABLE $tableUsers (
+            $userId INTEGER PRIMARY KEY AUTOINCREMENT,
+            $userUid TEXT NOT NULL UNIQUE,
+            $userEmail TEXT NOT NULL UNIQUE,
+            $userDisplayName TEXT DEFAULT '',
+            $userPhotoUrl TEXT DEFAULT '',
+            $userAuthProvider TEXT DEFAULT 'email',
+            $userCreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            $userUpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+        ''');
+      } catch (_) {}
+    }
+
+    if (oldVersion < 4) {
+      try {
+        await db.execute('ALTER TABLE $tableUsers ADD COLUMN $userSettings TEXT DEFAULT "{}"');
+        await db.execute('ALTER TABLE $tableOrders ADD COLUMN $orderItemsJson TEXT DEFAULT "[]"');
+      } catch (e) {
+        print("Error en migración v4: $e");
+      }
+    }
+
+    if (oldVersion < 5) {
+      try {
+        await db.execute('ALTER TABLE $tableOrders ADD COLUMN $orderUserId TEXT NOT NULL DEFAULT ""');
+        await db.execute('ALTER TABLE $tableOrders ADD COLUMN $orderDueDate TIMESTAMP');
+        await db.execute('ALTER TABLE $tableOrders ADD COLUMN $orderNotes TEXT DEFAULT ""');
+        await db.execute('ALTER TABLE $tableOrders ADD COLUMN $orderContacto TEXT DEFAULT ""');
+      } catch (e) {
+        print("Error en migración v5: $e");
+      }
+    }
+
+    if (oldVersion < 6) {
+      try {
+        await db.execute('''
+          CREATE TABLE $tableDesigns (
+            $designId INTEGER PRIMARY KEY AUTOINCREMENT,
+            $designName TEXT NOT NULL,
+            $designDescription TEXT DEFAULT '',
+            $designUserId TEXT NOT NULL,
+            $designCreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            $designUpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+        ''');
+      } catch (e) {
+        print("Error en migración v6: $e");
+      }
+    }
   }
 
   // ==========================================
@@ -216,50 +334,6 @@ class DatabaseHelper {
   }
 
   // ==========================================
-  // MÉTODOS ESPECÍFICOS PARA PRODUCTOS
-  // ==========================================
-
-  Future<int> addProduct(Map<String, dynamic> productData) async {
-    return await insert(tableProducts, productData);
-  }
-
-  Future<List<Map<String, dynamic>>> getAllProducts() async {
-    return await queryAll(tableProducts);
-  }
-
-  Future<Map<String, dynamic>?> getProductById(int id) async {
-    return await queryById(tableProducts, id);
-  }
-
-  Future<int> updateProduct(int id, Map<String, dynamic> updates) async {
-    updates['id'] = id;
-    updates[productUpdatedAt] = DateTime.now().toIso8601String();
-    return await update(tableProducts, updates);
-  }
-
-  Future<int> deleteProduct(int id) async {
-    return await delete(tableProducts, id);
-  }
-
-  Future<List<Map<String, dynamic>>> searchProducts(String query) async {
-    Database db = await instance.database;
-    return await db.query(
-      tableProducts,
-      where: '$productName LIKE ? OR $productDescription LIKE ? OR $productCategory LIKE ?',
-      whereArgs: ['%$query%', '%$query%', '%$query%'],
-    );
-  }
-
-  Future<List<Map<String, dynamic>>> getProductsByCategory(String category) async {
-    Database db = await instance.database;
-    return await db.query(
-      tableProducts,
-      where: '$productCategory = ?',
-      whereArgs: [category],
-    );
-  }
-
-  // ==========================================
   // MÉTODOS ESPECÍFICOS PARA CLIENTES
   // ==========================================
 
@@ -288,137 +362,218 @@ class DatabaseHelper {
   Future<int> deleteClient(int id) async {
     return await delete(tableClients, id);
   }
+// ==========================================
+// MÉTODOS DE PEDIDOS E INVENTARIO transacciones pues
+// ==========================================
 
-  // ==========================================
-  // MÉTODOS ESPECÍFICOS PARA PEDIDOS
-  // ==========================================
+/// Crea un pedido completo y actualiza el stock usando una transacción.
+Future<int> createOrderFull(OrderModel order) async {
+  final db = await database;
 
-  Future<int> addOrder(int clientId, double total, {String status = 'pending'}) async {
-    return await insert(tableOrders, {
-      orderClientId: clientId,
-      orderTotal: total,
-      orderStatus: status,
-    });
-  }
+  return await db.transaction((txn) async {
+    // 1. Insertar la cabecera del pedido
+    final int orderId = await txn.insert(tableOrders, order.toMap());
 
-  Future<List<Map<String, dynamic>>> getAllOrders() async {
+    // 2. Procesar cada ítem
+    for (var item in order.items) {
+      // Guardar el ítem vinculado al pedido
+      await txn.insert(tableOrderItems, {
+        'pedido_id': orderId,
+        'producto_id': item.productId,
+        'nombre_producto': item.productName,
+        'cantidad': item.quantity,
+        'precio_unitario': item.unitPrice,
+      });
+
+      // 3. Descontar stock del producto
+      if (item.productId != null) {
+        await txn.rawUpdate('''
+          UPDATE $tableProducts 
+          SET $productQuantity = $productQuantity - ?, 
+              $productUpdatedAt = ? 
+          WHERE $productId = ?
+        ''', [item.quantity, DateTime.now().toIso8601String(), item.productId]);
+      }
+    }
+    return orderId;
+  });
+}
+/// Obtiene un pedido por su ID (incluyendo el nombre del cliente)
+  Future<OrderModel?> getOrderById(int id) async {
     Database db = await instance.database;
-    return await db.rawQuery('''
-      SELECT o.*, c.$clientName as cliente_nombre, c.$clientEmail as cliente_email
-      FROM $tableOrders o
-      LEFT JOIN $tableClients c ON o.$orderClientId = c.$clientId
-      ORDER BY o.$orderDate DESC
-    ''');
-  }
-
-  Future<Map<String, dynamic>?> getOrderById(int id) async {
-    Database db = await instance.database;
-    List<Map<String, dynamic>> result = await db.rawQuery('''
-      SELECT o.*, c.$clientName as cliente_nombre, c.$clientEmail as cliente_email
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT o.*, c.$clientName as nombre_cliente
       FROM $tableOrders o
       LEFT JOIN $tableClients c ON o.$orderClientId = c.$clientId
       WHERE o.$orderId = ?
     ''', [id]);
-    return result.isNotEmpty ? result.first : null;
+
+    if (maps.isNotEmpty) {
+      // Buscamos los ítems de este pedido específico
+      final List<Map<String, dynamic>> itemMaps = await db.query(
+        tableOrderItems,
+        where: 'pedido_id = ?',
+        whereArgs: [id],
+      );
+      
+      final items = itemMaps.map((i) => OrderItem.fromMap(i)).toList();
+      return OrderModel.fromMap(maps.first, items: items);
+    }
+    return null;
   }
 
-  Future<List<Map<String, dynamic>>> getOrdersByClient(int clientId) async {
-    Database db = await instance.database;
-    return await db.query(
+/// Actualiza únicamente el estado de un pedido (ej: de 'pending' a 'completed')
+  Future<int> updateOrderStatus(int id, String status) async {
+    final db = await database;
+    return await db.update(
       tableOrders,
-      where: '$orderClientId = ?',
-      whereArgs: [clientId],
-      orderBy: '$orderDate DESC',
+      {orderStatus: status}, // 'estado' en tu tabla
+      where: '$orderId = ?', // 'id' en tu tabla
+      whereArgs: [id],
     );
   }
 
-  Future<int> updateOrderStatus(int orderId, String status) async {
-    return await update(tableOrders, {
-      'id': orderId,
-      orderStatus: status,
+  /// Actualiza un pedido completo con todos sus datos
+  Future<void> updateOrder(OrderModel order) async {
+    if (order.id == null) throw Exception('El pedido debe tener un ID para actualizar');
+    
+    final db = await database;
+    await db.transaction((txn) async {
+      // 1. Actualizar la cabecera del pedido
+      await txn.update(
+        tableOrders,
+        {
+          orderUserId: order.userId,
+          orderClientId: order.clientId,
+          orderDate: order.createdAt.toIso8601String(),
+          orderDueDate: order.dueDate?.toIso8601String(),
+          orderTotal: order.totalPrice,
+          orderStatus: order.status.value,
+          orderNotes: order.notes,
+          orderContacto: order.customerContact,
+        },
+        where: '$orderId = ?',
+        whereArgs: [order.id],
+      );
+
+      // 2. Actualizar los ítems si están presentes
+      if (order.items.isNotEmpty) {
+        // Primero eliminar los ítems antiguos
+        await txn.delete(
+          tableOrderItems,
+          where: '$orderItemOrderId = ?',
+          whereArgs: [order.id],
+        );
+        
+        // Luego insertar los nuevos
+        for (var item in order.items) {
+          await txn.insert(tableOrderItems, {
+            orderItemOrderId: order.id,
+            orderItemProductId: item.productId,
+            orderItemProductName: item.productName,
+            orderItemQuantity: item.quantity,
+            orderItemUnitPrice: item.unitPrice,
+          });
+        }
+      }
     });
   }
+/// Obtiene todos los pedidos con sus ítems incluidos
+Future<List<OrderModel>> getAllOrdersWithItems() async {
+  final db = await database;
 
-  Future<int> deleteOrder(int id) async {
-    // Primero elimina los items (la cascada debería hacerlo, pero nos aseguramos)
-    Database db = await instance.database;
-    await db.delete(tableOrderItems, where: '$orderItemOrderId = ?', whereArgs: [id]);
-    return await delete(tableOrders, id);
-  }
+  // Consulta con JOIN para datos del cliente
+  final List<Map<String, dynamic>> orderMaps = await db.rawQuery('''
+    SELECT o.*, c.$clientName as nombre_cliente 
+    FROM $tableOrders o
+    LEFT JOIN $tableClients c ON o.$orderClientId = c.$clientId
+    ORDER BY o.$orderDate DESC
+  ''');
 
-  // ==========================================
-  // MÉTODOS ESPECÍFICOS PARA ITEMS DE PEDIDOS
-  // ==========================================
+  List<OrderModel> orders = [];
 
-  Future<int> addOrderItem(int orderId, int productId, String productName, int quantity, double unitPrice) async {
-    return await insert(tableOrderItems, {
-      orderItemOrderId: orderId,
-      orderItemProductId: productId,
-      orderItemProductName: productName,
-      orderItemQuantity: quantity,
-      orderItemUnitPrice: unitPrice,
-    });
-  }
-
-  Future<List<Map<String, dynamic>>> getOrderItems(int orderId) async {
-    Database db = await instance.database;
-    return await db.query(
+  for (var oMap in orderMaps) {
+    // Para cada pedido, buscamos sus ítems
+    final List<Map<String, dynamic>> itemMaps = await db.query(
       tableOrderItems,
-      where: '$orderItemOrderId = ?',
-      whereArgs: [orderId],
+      where: 'pedido_id = ?',
+      whereArgs: [oMap['id']],
     );
+
+    final items = itemMaps.map((i) => OrderItem.fromMap(i)).toList();
+    orders.add(OrderModel.fromMap(oMap, items: items));
   }
 
-  Future<int> deleteOrderItem(int itemId) async {
-    return await delete(tableOrderItems, itemId);
-  }
+  return orders;
+}
 
-  Future<void> deleteAllOrderItems(int orderId) async {
-    Database db = await instance.database;
-    await db.delete(tableOrderItems, where: '$orderItemOrderId = ?', whereArgs: [orderId]);
-  }
+/// Elimina un pedido y REVIERTE el stock (opcional, muy útil si se cancela)
+Future<void> cancelAndReturnStock(int orderId) async {
+  final db = await database;
 
+  await db.transaction((txn) async {
+    // 1. Obtener los ítems para saber cuánto devolver al stock
+    final List<Map<String, dynamic>> items = await txn.query(
+      tableOrderItems, 
+      where: 'pedido_id = ?', 
+      whereArgs: [orderId]
+    );
+
+    for (var item in items) {
+      await txn.rawUpdate(
+        'UPDATE $tableProducts SET $productQuantity = $productQuantity + ? WHERE $productId = ?',
+        [item['cantidad'], item['producto_id']]
+      );
+    }
+
+    // 2. Borrar ítems y pedido
+    await txn.delete(tableOrderItems, where: 'pedido_id = ?', whereArgs: [orderId]);
+    await txn.delete(tableOrders, where: 'id = ?', whereArgs: [orderId]);
+  });
+}
   // ==========================================
-  // MÉTODOS PARA GESTIÓN DE STOCK
+  // MÉTODOS ESPECÍFICOS PARA USUARIOS
   // ==========================================
 
-  Future<int?> getProductQuantity(int productId) async {
+  // --- Ajustar el método addUser para que use el objeto directamente ---
+  Future<int> addUser(dynamic userModel) async {
     Database db = await instance.database;
-    List<Map<String, dynamic>> result = await db.query(
-      tableProducts,
-      columns: [productQuantity],
-      where: '$productId = ?',
-      whereArgs: [productId],
-    );
-    return result.isNotEmpty ? result.first[productQuantity] as int : null;
-  }
-
-  Future<void> updateProductQuantity(int productId, int newQuantity) async {
-    Database db = await instance.database;
-    await db.update(
-      tableProducts,
-      {
-        productQuantity: newQuantity,
-        productUpdatedAt: DateTime.now().toIso8601String(),
-      },
-      where: '$productId = ?',
-      whereArgs: [productId],
+    // Ahora enviamos el map completo que genera el modelo
+    return await db.insert(
+      tableUsers, 
+      userModel.toMap(), 
+      conflictAlgorithm: ConflictAlgorithm.replace // Si el usuario existe, lo actualiza
     );
   }
 
-  Future<void> decrementProductQuantity(int productId, int amount) async {
+
+  Future<Map<String, dynamic>?> getUserByUid(String uid) async {
     Database db = await instance.database;
-    await db.rawUpdate(
-      'UPDATE $tableProducts SET $productQuantity = $productQuantity - ?, $productUpdatedAt = ? WHERE $productId = ?',
-      [amount, DateTime.now().toIso8601String(), productId],
+    final List<Map<String, dynamic>> results = await db.query(
+      tableUsers,
+      where: '$userUid = ?',
+      whereArgs: [uid],
+    );
+    return results.isNotEmpty ? results.first : null;
+  }
+
+  Future<int> updateUser(dynamic userModel) async {
+    Database db = await instance.database;
+    final map = userModel.toMap();
+    return await db.update(
+      tableUsers,
+      map,
+      where: '$userUid = ?',
+      whereArgs: [map[userUid]],
     );
   }
 
-  Future<void> incrementProductQuantity(int productId, int amount) async {
+  Future<int> deleteUser(String uid) async {
     Database db = await instance.database;
-    await db.rawUpdate(
-      'UPDATE $tableProducts SET $productQuantity = $productQuantity + ?, $productUpdatedAt = ? WHERE $productId = ?',
-      [amount, DateTime.now().toIso8601String(), productId],
+    return await db.delete(
+      tableUsers,
+      where: '$userUid = ?',
+      whereArgs: [uid],
     );
   }
 
@@ -431,5 +586,53 @@ class DatabaseHelper {
       await _database!.close();
       _database = null;
     }
+  }
+
+  // ==========================================
+  // MÉTODOS ESPECÍFICOS PARA DESIGNS
+  // ==========================================
+
+  Future<void> createDesign(dynamic designModel) async {
+    final db = await database;
+    await db.insert(tableDesigns, designModel.toMap());
+  }
+
+  Future<List<DesignModel>> getAllDesigns() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      tableDesigns,
+      orderBy: '$designCreatedAt DESC',
+    );
+    return maps.map((m) => DesignModel.fromMap(m)).toList();
+  }
+
+  Future<DesignModel?> getDesignById(int id) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      tableDesigns,
+      where: '$designId = ?',
+      whereArgs: [id],
+    );
+    return maps.isNotEmpty ? DesignModel.fromMap(maps.first) : null;
+  }
+
+  Future<void> updateDesign(dynamic designModel) async {
+    final db = await database;
+    final map = designModel.toMap();
+    await db.update(
+      tableDesigns,
+      map,
+      where: '$designId = ?',
+      whereArgs: [map['id']],
+    );
+  }
+
+  Future<void> deleteDesign(int id) async {
+    final db = await database;
+    await db.delete(
+      tableDesigns,
+      where: '$designId = ?',
+      whereArgs: [id],
+    );
   }
 }

@@ -1,53 +1,112 @@
-﻿import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'dart:async';
+
+import 'package:andicrochett/database_helper.dart';
 import 'package:andicrochett/features/designs/data/models/design_model.dart';
 
 // =============================================================================
 //  DesignRepository
-//  Única fuente de verdad para CRUD en Firestore sobre la colección 'designs'.
+// Repositorio para CRUD en SQLite sobre la tabla 'designs'.
 // =============================================================================
 
 class DesignRepository {
-  DesignRepository({FirebaseFirestore? firestore})
-    : _db = firestore ?? FirebaseFirestore.instance;
+  DesignRepository({DatabaseHelper? dbHelper})
+      : _db = dbHelper ?? DatabaseHelper.instance;
 
-  final FirebaseFirestore _db;
+  final DatabaseHelper _db;
+  final _designsStreamController =
+      StreamController<List<DesignModel>>.broadcast();
 
-  CollectionReference<Map<String, dynamic>> get _col =>
-      _db.collection('designs');
+  Stream<List<DesignModel>> get designsStream => _designsStreamController.stream;
 
   // ── Lectura ───────────────────────────────────────────────────────────────
 
-  Stream<List<DesignDocument>> watchAll() => _col
-      .orderBy('createdAt', descending: true)
-      .snapshots()
-      .map((s) => s.docs.map(DesignDocument.fromDoc).toList());
+  /// Obtiene todos los diseños ordenados por fecha de creación.
+  Future<List<DesignModel>> getAll() async {
+    try {
+      return await _db.getAllDesigns();
+    } catch (e) {
+      throw Exception('Error al obtener diseños: $e');
+    }
+  }
 
-  Stream<List<DesignDocument>> watchByUser(String userId) => _col
-      .where('userId', isEqualTo: userId)
-      .orderBy('createdAt', descending: true)
-      .snapshots()
-      .map((s) => s.docs.map(DesignDocument.fromDoc).toList());
+  /// Obtiene diseños filtrados por usuario como Stream.
+  Stream<List<DesignModel>> watchByUser(String userId) async* {
+    try {
+      final initial = await _fetchDesignsByUser(userId);
+      yield initial;
+    } catch (e) {
+      print('Error al cargar diseños iniciales: $e');
+    }
 
-  Stream<DesignDocument?> watchById(String id) => _col
-      .doc(id)
-      .snapshots()
-      .map((s) => s.exists ? DesignDocument.fromDoc(s) : null);
+    await for (final designs in _designsStreamController.stream) {
+      yield designs.where((d) => d.userId == userId).toList();
+    }
+  }
+
+  Future<List<DesignModel>> _fetchDesignsByUser(String userId) async {
+    try {
+      final all = await _db.getAllDesigns();
+      return all.where((d) => d.userId == userId).toList();
+    } catch (e) {
+      throw Exception('Error al obtener diseños del usuario: $e');
+    }
+  }
+
+  /// Obtiene un diseño específico por su ID.
+  Future<DesignModel?> getById(int id) async {
+    try {
+      return await _db.getDesignById(id);
+    } catch (e) {
+      throw Exception('Error al obtener el diseño #$id: $e');
+    }
+  }
 
   // ── Escritura ─────────────────────────────────────────────────────────────
 
-  Future<String> create(DesignDocument design) async {
-    final now = DateTime.now();
-    final ref = await _col.add(
-      design.copyWith(createdAt: now, updatedAt: now).toMap(),
-    );
-    return ref.id;
+  /// Crea un nuevo diseño.
+  Future<void> create(DesignModel design) async {
+    try {
+      if (design.userId.isEmpty) {
+        throw Exception('El diseño debe tener un usuario válido.');
+      }
+      await _db.createDesign(design);
+      await _refreshDesigns();
+    } catch (e) {
+      throw Exception('Error al crear el diseño: $e');
+    }
   }
 
-  Future<void> update(DesignDocument design) async {
-    await _col
-        .doc(design.id)
-        .update(design.copyWith(updatedAt: DateTime.now()).toMap());
+  /// Actualiza un diseño existente.
+  Future<void> update(DesignModel design) async {
+    try {
+      if (design.id == null) {
+        throw Exception('No se puede actualizar un diseño sin ID.');
+      }
+      await _db.updateDesign(design);
+      await _refreshDesigns();
+    } catch (e) {
+      throw Exception('Error al actualizar el diseño: $e');
+    }
   }
 
-  Future<void> delete(String id) => _col.doc(id).delete();
+  /// Elimina un diseño.
+  Future<void> delete(int id) async {
+    try {
+      await _db.deleteDesign(id);
+      await _refreshDesigns();
+    } catch (e) {
+      throw Exception('Error al eliminar el diseño: $e');
+    }
+  }
+
+  // ── Utilidades privadas ───────────────────────────────────────────────────
+
+  Future<void> _refreshDesigns() async {
+    final designs = await getAll();
+    _designsStreamController.add(designs);
+  }
+
+  void dispose() {
+    _designsStreamController.close();
+  }
 }

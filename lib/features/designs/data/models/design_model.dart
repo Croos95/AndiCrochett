@@ -1,24 +1,23 @@
-﻿import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 
 // =============================================================================
-//  DesignDocument — DTO de Firestore para un diseño de crochet.
+//  DesignModel — Modelo para un diseño de crochet en SQLite.
 //  Un diseño agrupa uno o más patrones de crochet.
-//  Colección de Firestore: 'designs'
+//  Tabla SQLite: 'designs'
 // =============================================================================
 
 @immutable
-class DesignDocument {
-  const DesignDocument({
-    required this.id,
+class DesignModel {
+  const DesignModel({
+    this.id,
     required this.name,
     required this.description,
     required this.userId,
     required this.createdAt,
-    required this.updatedAt,
-  });
+    DateTime? updatedAt,
+  }) : updatedAt = updatedAt ?? createdAt;
 
-  final String id;
+  final int? id;
 
   /// Nombre visible del diseño, p.ej. "Amigurumi de osito".
   final String name;
@@ -33,42 +32,40 @@ class DesignDocument {
   // ── Serialización ─────────────────────────────────────────────────────────
 
   Map<String, dynamic> toMap() => {
-    'name': name,
-    'description': description,
-    'userId': userId,
-    'createdAt': Timestamp.fromDate(createdAt),
-    'updatedAt': Timestamp.fromDate(updatedAt),
+    if (id != null) 'id': id,
+    'nombre': name,
+    'descripcion': description,
+    'usuario_id': userId,
+    'fecha_creacion': createdAt.toIso8601String(),
+    'fecha_actualizacion': updatedAt.toIso8601String(),
   };
 
-  factory DesignDocument.fromDoc(DocumentSnapshot doc) {
-    final d = doc.data() as Map<String, dynamic>;
-    return DesignDocument(
-      id: doc.id,
-      name: d['name'] as String? ?? '',
-      description: d['description'] as String? ?? '',
-      userId: d['userId'] as String? ?? '',
-      createdAt: (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      updatedAt: (d['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+  factory DesignModel.fromMap(Map<String, dynamic> map) {
+    return DesignModel(
+      id: map['id'] as int?,
+      name: map['nombre'] as String? ?? '',
+      description: map['descripcion'] as String? ?? '',
+      userId: map['usuario_id'] as String? ?? '',
+      createdAt: DateTime.tryParse(map['fecha_creacion'] as String? ?? '') ?? DateTime.now(),
+      updatedAt: DateTime.tryParse(map['fecha_actualizacion'] as String? ?? '') ?? DateTime.now(),
     );
   }
 
-  factory DesignDocument.empty() => DesignDocument(
-    id: '',
+  factory DesignModel.empty({required String userId}) => DesignModel(
     name: '',
     description: '',
-    userId: '',
+    userId: userId,
     createdAt: DateTime.now(),
-    updatedAt: DateTime.now(),
   );
 
-  DesignDocument copyWith({
-    String? id,
+  DesignModel copyWith({
+    int? id,
     String? name,
     String? description,
     String? userId,
     DateTime? createdAt,
     DateTime? updatedAt,
-  }) => DesignDocument(
+  }) => DesignModel(
     id: id ?? this.id,
     name: name ?? this.name,
     description: description ?? this.description,

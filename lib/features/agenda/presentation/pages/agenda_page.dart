@@ -14,8 +14,8 @@ import 'package:andicrochett/core/utils/helpers.dart';
 import 'package:andicrochett/core/widgets/custom_button.dart';
 import 'package:andicrochett/core/widgets/custom_input.dart';
 import 'package:andicrochett/features/agenda/data/models/order_model.dart';
-import 'package:andicrochett/features/agenda/data/repositories/agenda_repository.dart';
 import 'package:andicrochett/features/agenda/presentation/widgets/calendar_widget.dart';
+import 'package:andicrochett/features/agenda/data/repositories/order_repository.dart';
 
 /// Pantalla de agenda con calendario y lista de pedidos.
 class AgendaPage extends StatefulWidget {
@@ -26,7 +26,7 @@ class AgendaPage extends StatefulWidget {
 }
 
 class _AgendaPageState extends State<AgendaPage> {
-  final AgendaRepository _repo = AgendaRepository();
+  final OrderRepository _repo = OrderRepository();
   DateTime _selectedDay = DateTime.now();
 
   String get _userId => FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -64,7 +64,7 @@ class _AgendaPageState extends State<AgendaPage> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Eliminar pedido'),
-        content: Text('¿Eliminar el pedido de "${order.customerName}"?'),
+        content: Text('¿Eliminar el pedido de "${order.clientName}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -361,7 +361,7 @@ class _OrderCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      order.customerName,
+                      order.clientName,
                       style: const TextStyle(
                         fontSize: Sizes.fontSizeLg,
                         fontWeight: FontWeight.bold,
@@ -545,7 +545,7 @@ class _OrderFormState extends State<_OrderForm> {
   void initState() {
     super.initState();
     final e = widget.existing;
-    _customerNameCtrl = TextEditingController(text: e?.customerName ?? '');
+    _customerNameCtrl = TextEditingController(text: e?.clientName ?? '');
     _customerContactCtrl = TextEditingController(
       text: e?.customerContact ?? '',
     );
@@ -581,9 +581,9 @@ class _OrderFormState extends State<_OrderForm> {
     setState(() => _saving = true);
 
     final order = OrderModel(
-      id: widget.existing?.id ?? '',
+      id: widget.existing?.id,
       userId: widget.existing?.userId ?? '',
-      customerName: _customerNameCtrl.text.trim(),
+      clientName: _customerNameCtrl.text.trim(),
       customerContact: _customerContactCtrl.text.trim(),
       items: widget.existing?.items ?? [],
       totalPrice: double.tryParse(_totalPriceCtrl.text.trim()) ?? 0,
@@ -591,7 +591,6 @@ class _OrderFormState extends State<_OrderForm> {
       dueDate: _dueDate,
       notes: _notesCtrl.text.trim(),
       createdAt: widget.existing?.createdAt ?? DateTime.now(),
-      updatedAt: DateTime.now(),
     );
 
     await widget.onSave(order);
