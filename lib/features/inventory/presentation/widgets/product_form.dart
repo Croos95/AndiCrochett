@@ -78,6 +78,7 @@ class _ProductFormState extends State<ProductForm> {
     _currentStockCtrl = TextEditingController(
       text: e != null ? e.currentStock.toString() : '',
     );
+    _totalStockCtrl = TextEditingController(text: '');
     _category = e?.category ?? 'Estambre';
     _colorPreview = _parseColor(e?.color);
 
@@ -92,6 +93,7 @@ class _ProductFormState extends State<ProductForm> {
     _weightCtrl.addListener(_markDirty);
     _brandCtrl.addListener(_markDirty);
     _currentStockCtrl.addListener(_markDirty);
+    _totalStockCtrl.addListener(_markDirty);
   }
 
   void _markDirty() {
@@ -147,49 +149,64 @@ class _ProductFormState extends State<ProductForm> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Revisa los campos marcados antes de continuar'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      // ... (tu código de validación actual)
       return;
     }
 
     setState(() => _saving = true);
 
-    final currentStock = int.parse(_currentStockCtrl.text.trim());
-    final price = double.parse(_priceCtrl.text.trim());
+    try {
+      final currentStock = int.parse(_currentStockCtrl.text.trim());
+      final price = double.parse(_priceCtrl.text.trim());
 
-    // Determinar estado del stock
-    final ProductStatus status;
-    if (currentStock == 0) {
-      status = ProductStatus.outOfStock;
-    } else if (currentStock <= 5) {
-      status = ProductStatus.lowStock;
-    } else {
-      status = ProductStatus.available;
+      final status = currentStock <= 0
+          ? ProductStatus.outOfStock
+          : currentStock < 5
+          ? ProductStatus.lowStock
+          : ProductStatus.available;
+
+      final product = ProductModel(
+        id: widget.existing?.id,
+        name: _nameCtrl.text.trim(),
+        description: _descriptionCtrl.text.trim(),
+        price: price,
+        imageUrl: widget.existing?.imageUrl ?? '',
+        category: _category,
+        color: _colorCtrl.text.trim(),
+        weight: _weightCtrl.text.trim(),
+        brand: _brandCtrl.text.trim(),
+        currentStock: currentStock,
+        status: status,
+        createdAt: widget.existing?.createdAt,
+        updatedAt: DateTime.now(),
+      );
+
+      // LLAMADA IMPORTANTE
+      await widget.onSave(product);
+
+      // Si llegamos aquí, todo salió bien
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Producto guardado correctamente'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      // Si hay un error (ej: error de SQLite), lo atrapamos aquí
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al guardar: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      // Esto se ejecuta SIEMPRE, haya error o no
+      if (mounted) setState(() => _saving = false);
     }
-
-    final product = ProductModel(
-      id: widget.existing?.id,
-      name: _nameCtrl.text.trim(),
-      description: _descriptionCtrl.text.trim(),
-      price: price,
-      imageUrl: widget.existing?.imageUrl ?? '',
-      category: _category,
-      color: _colorCtrl.text.trim(),
-      weight: _weightCtrl.text.trim(),
-      brand: _brandCtrl.text.trim(),
-      currentStock: currentStock,
-      status: status,
-      createdAt: widget.existing?.createdAt ?? DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
-
-    await widget.onSave(product);
-    if (mounted) setState(() => _saving = false);
   }
 
   @override
@@ -382,7 +399,24 @@ class _ProductFormState extends State<ProductForm> {
                     textInputAction: TextInputAction.next,
                   ),
                   const SizedBox(height: Sizes.lg),
-
+                  // Dentro del Column de tu build method
+                  AppInput(
+                    controller: _priceCtrl,
+                    labelText: 'Precio *',
+                    hintText: '0.00',
+                    prefixIcon: Icons.attach_money_outlined,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d+\.?\d{0,2}'),
+                      ), // Solo números y un punto
+                    ],
+                    validator: (v) =>
+                        AppValidators.required(v, fieldName: 'El precio'),
+                  ),
+                  const SizedBox(height: Sizes.md),
                   // -- Stock -----------------------------------------------
                   const _SectionLabel(label: 'Stock'),
                   const SizedBox(height: Sizes.sm),

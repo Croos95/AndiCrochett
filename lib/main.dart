@@ -13,8 +13,9 @@ late final GoRouter _router;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // ¡Adiós al initializeSqflite()! En móvil no se necesita.
 
   final authProvider = AuthProvider();
   _router = AppRoutes.createRouter(authProvider);
