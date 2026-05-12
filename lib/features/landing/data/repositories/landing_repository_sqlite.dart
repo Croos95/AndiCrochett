@@ -42,8 +42,12 @@ class CatalogSettingsModel {
       userId: map['usuario_id'] as String? ?? '',
       isPublic: (map['es_publico'] as int? ?? 0) == 1,
       featuredProducts: decodedProducts.cast<String>(),
-      createdAt: DateTime.tryParse(map['fecha_creacion'] as String? ?? '') ?? DateTime.now(),
-      updatedAt: DateTime.tryParse(map['fecha_actualizacion'] as String? ?? '') ?? DateTime.now(),
+      createdAt:
+          DateTime.tryParse(map['fecha_creacion'] as String? ?? '') ??
+          DateTime.now(),
+      updatedAt:
+          DateTime.tryParse(map['fecha_actualizacion'] as String? ?? '') ??
+          DateTime.now(),
     );
   }
 
@@ -54,24 +58,23 @@ class CatalogSettingsModel {
     List<String>? featuredProducts,
     DateTime? createdAt,
     DateTime? updatedAt,
-  }) =>
-      CatalogSettingsModel(
-        id: id ?? this.id,
-        userId: userId ?? this.userId,
-        isPublic: isPublic ?? this.isPublic,
-        featuredProducts: featuredProducts ?? this.featuredProducts,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-      );
+  }) => CatalogSettingsModel(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    isPublic: isPublic ?? this.isPublic,
+    featuredProducts: featuredProducts ?? this.featuredProducts,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
 
   void addFeaturedProduct(String productId) {
     if (!featuredProducts.contains(productId)) {
-      (featuredProducts as List<String>).add(productId);
+      (featuredProducts).add(productId);
     }
   }
 
   void removeFeaturedProduct(String productId) {
-    (featuredProducts as List<String>).remove(productId);
+    (featuredProducts).remove(productId);
   }
 }
 
@@ -113,13 +116,10 @@ class LandingRepositoryImpl extends LandingRepository {
 
   @override
   Future<void> updateCatalog(CatalogSettingsModel catalog) async {
-    await _db.updateCatalogSettings(
-      catalog.userId,
-      {
-        'es_publico': catalog.isPublic ? 1 : 0,
-        'productos_destacados': jsonEncode(catalog.featuredProducts),
-      },
-    );
+    await _db.updateCatalogSettings(catalog.userId, {
+      'es_publico': catalog.isPublic ? 1 : 0,
+      'productos_destacados': jsonEncode(catalog.featuredProducts),
+    });
   }
 
   @override
