@@ -4,7 +4,8 @@ import 'package:andicrochett/core/constants/colors.dart';
 import 'package:andicrochett/core/constants/sizes.dart';
 import 'package:andicrochett/features/patterns/data/models/pattern_model.dart';
 import 'package:andicrochett/features/patterns/data/repositories/pattern_repository.dart';
-
+import 'package:andicrochett/features/patterns/utils/stitch_registry.dart';
+import 'package:andicrochett/features/patterns/utils/pattern_parser.dart';
 // ── Internal data model ──────────────────────────────────────────────────────
 
 class _RS {
@@ -122,8 +123,8 @@ const _kStitches = [
 class PatternEditorPage extends StatefulWidget {
   const PatternEditorPage({super.key, required this.designId, this.existing});
 
-  final String designId;
-  final PatternDocument? existing;
+  final int designId;
+  final PatternModel? existing;
 
   @override
   State<PatternEditorPage> createState() => _PatternEditorPageState();
@@ -205,7 +206,7 @@ class _PatternEditorPageState extends State<PatternEditorPage> {
     super.dispose();
   }
 
-  void _loadFromDoc(PatternDocument p) {
+  void _loadFromDoc(PatternModel p) {
     _nameCtrl.text = p.name;
     _type = p.type;
     _difficulty = p.difficulty;
@@ -490,18 +491,25 @@ class _PatternEditorPageState extends State<PatternEditorPage> {
     if (_rows.isEmpty) return const [];
     final rawText = _buildRawText();
     if (rawText == _cachedRawText) return _cachedErrors;
-    final tmp = PatternDocument(
-      id: '',
-      name: 'tmp',
+    
+    // Cambiamos PatternDocument por PatternModel y id: '' por id: null
+    final tmp = PatternModel(
+      id: null, // Cambiado a null
+      name: _nameCtrl.text.trim(),
       type: _type,
       rawText: rawText,
       designId: widget.existing?.designId ?? widget.designId,
       userId: '',
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
+      difficulty: _difficulty,
+      suggestedMaterial: _materialCtrl.text.trim(),
+      hookSize: _hookCtrl.text.trim(),
+      status: _status,
     );
+    
     _cachedRawText = rawText;
-    _cachedErrors = tmp.validate();
+    _cachedErrors = tmp.validate(); 
     return _cachedErrors;
   }
 
@@ -517,9 +525,9 @@ class _PatternEditorPageState extends State<PatternEditorPage> {
     }
 
     final rawText = _buildRawText();
-    final tmp = PatternDocument(
-      id: '',
-      name: name,
+    final tmp = PatternModel(
+      id: null,
+      name: _nameCtrl.text.trim(),
       type: _type,
       rawText: rawText,
       designId: widget.existing?.designId ?? widget.designId,
@@ -574,9 +582,11 @@ class _PatternEditorPageState extends State<PatternEditorPage> {
     try {
       final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
       final now = DateTime.now();
-      final doc = PatternDocument(
-        id: widget.existing?.id ?? '',
-        name: name,
+      
+      // Cambiamos PatternDocument por PatternModel
+      final doc = PatternModel(
+        id: widget.existing?.id, // Quitamos el ?? '' porque ahora es un int?
+        name: _nameCtrl.text.trim(),
         type: _type,
         rawText: rawText,
         designId: widget.existing?.designId ?? widget.designId,
@@ -588,13 +598,15 @@ class _PatternEditorPageState extends State<PatternEditorPage> {
         hookSize: _hookCtrl.text.trim(),
         status: _status,
       );
+      
       if (_isEditing) {
         await _repo.update(doc);
       } else {
         await _repo.create(doc);
       }
+      
       if (mounted) {
-        _snack(_isEditing ? 'Patr\u00f3n actualizado' : 'Patr\u00f3n creado');
+        _snack(_isEditing ? 'Patrón actualizado' : 'Patrón creado');
         Navigator.pop(context);
       }
     } catch (e) {
@@ -1054,7 +1066,7 @@ class _PatternEditorPageState extends State<PatternEditorPage> {
     child: Column(
       children: List.generate(_rows.length, (i) {
         final row = _rows[i];
-        final rowErrors = liveErrors.where((e) => e.row == row.nr).toList();
+        final rowErrors = liveErrors.where((e) => e.rowIndex == row.nr).toList();
         final hasError = rowErrors.isNotEmpty;
         return Container(
           margin: const EdgeInsets.only(bottom: Sizes.sm),

@@ -1,57 +1,88 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'package:andicrochett/database_helper.dart';
 import 'package:andicrochett/features/landing_connection/data/models/catalog_settings_model.dart';
 
-/// Repositorio Firestore para la configuración del catálogo público.
-///
-/// Colección: `catalog_settings/{userId}` (un doc por usuario).
+/// Repositorio SQLite para la configuración del catálogo público.
 class LandingRepository {
-  final _col = FirebaseFirestore.instance.collection('catalog_settings');
+  LandingRepository({DatabaseHelper? dbHelper})
+      : _db = dbHelper ?? DatabaseHelper.instance;
 
-  /// Devuelve un stream reactivo de la configuración del catálogo del usuario.
-  /// Si el documento no existe, emite [CatalogSettings.empty].
-  Stream<CatalogSettings> watchCatalog(String userId) {
-    return _col.doc(userId).snapshots().map((snap) {
-      if (!snap.exists) return CatalogSettings.empty(userId);
-      return CatalogSettings.fromDoc(snap);
-    });
+  final DatabaseHelper _db;
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Streams (Flujos reactivos simulados)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Stream<CatalogSettings> watchCatalog(String userId) async* {
+    yield await getCatalog(userId);
+    yield* _streamWithRefresh(() => getCatalog(userId));
   }
 
-  /// Obtiene la configuración actual una sola vez.
+  Stream<T> _streamWithRefresh<T>(Future<T> Function() fetch) async* {
+    while (true) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      yield await fetch();
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Operaciones CRUD
+  // ─────────────────────────────────────────────────────────────────────────
+
   Future<CatalogSettings> getCatalog(String userId) async {
-    final snap = await _col.doc(userId).get();
-    if (!snap.exists) return CatalogSettings.empty(userId);
-    return CatalogSettings.fromDoc(snap);
+    final map = await _db.getCatalogSettings(userId);
+    
+    if (map == null) return CatalogSettings.empty(userId);
+    
+    // Cambiamos fromDoc (que era de Firebase) por fromMap (para SQLite)
+    return CatalogSettings.fromMap(map);
   }
 
-  /// Crea o actualiza la configuración completa del catálogo.
-  Future<void> updateCatalog(CatalogSettings settings) {
-    return _col.doc(settings.userId).set(
-          settings.toMap(),
-          SetOptions(merge: true),
-        );
+  Future<void> updateCatalog(CatalogSettings settings) async {
+    // Usaremos un método "upsert" (actualizar si existe, insertar si no existe)
+    await _db.updateCatalogSettings(settings.userId, settings.toMap());
   }
 
-  /// Activa o desactiva el catálogo público sin modificar el resto.
-  Future<void> togglePublicCatalog(String userId, bool enabled) {
-    return _col.doc(userId).set({
-      'isPublicCatalogEnabled': enabled,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+  Future<void> togglePublicCatalog(String userId, bool enabled) async {
+    final current = await getCatalog(userId);
+    
+    final updated = current.copyWith(
+      isPublicCatalogEnabled: enabled,
+      updatedAt: DateTime.now(),
+    );
+    
+    await updateCatalog(updated);
   }
 
-  /// Agrega un producto a los destacados.
-  Future<void> addFeaturedProduct(String userId, String productId) {
-    return _col.doc(userId).update({
-      'featuredProducts': FieldValue.arrayUnion([productId]),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+  Future<void> addFeaturedProduct(String userId, String productId) async {
+    final current = await getCatalog(userId);
+    
+    // Evitamos duplicados manualmente
+    if (!current.featuredProducts.contains(productId)) {
+      final updatedList = List<String>.from(current.featuredProducts)..add(productId);
+      
+      final updated = current.copyWith(
+        featuredProducts: updatedList,
+        updatedAt: DateTime.now(),
+      );
+      
+      await updateCatalog(updated);
+    }
   }
 
-  /// Quita un producto de los destacados.
-  Future<void> removeFeaturedProduct(String userId, String productId) {
-    return _col.doc(userId).update({
-      'featuredProducts': FieldValue.arrayRemove([productId]),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+  Future<void> removeFeaturedProduct(String userId, String productId) async {
+    final current = await getCatalog(userId);
+    
+    if (current.featuredProducts.contains(productId)) {
+      final updatedList = List<String>.from(current.featuredProducts)..remove(productId);
+      
+      final updated = current.copyWith(
+        featuredProducts: updatedList,
+        updatedAt: DateTime.now(),
+      );
+      
+      await updateCatalog(updated);
+    }
   }
 }

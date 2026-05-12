@@ -2,11 +2,12 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:andicrochett/features/agenda/data/models/order_model.dart';
 import 'package:andicrochett/features/designs/data/models/design_model.dart';
+import 'package:andicrochett/features/patterns/data/models/pattern_model.dart';
 //lib/database_helper.dart
 class DatabaseHelper {
   // Configuración de la base de datos
   static const _databaseName = "andicrochett.db";
-  static const _databaseVersion = 6;
+  static const _databaseVersion = 8;
   
   // Nueva columna para preferencias de usuario
   static const userSettings = 'settings'; 
@@ -21,6 +22,8 @@ class DatabaseHelper {
   static const tableOrderItems = 'items_pedido';
   static const tableClients = 'clientes';
   static const tableDesigns = 'designs';
+  static const tablePatterns = 'patterns';
+  static const tableCatalogSettings = 'catalog_settings';
 
   // ============ COLUMNAS - USUARIOS ============
   static const userId = 'id';
@@ -80,6 +83,33 @@ class DatabaseHelper {
   static const designUserId = 'usuario_id';
   static const designCreatedAt = 'fecha_creacion';
   static const designUpdatedAt = 'fecha_actualizacion';
+
+  // ============ COLUMNAS - PATTERNS ============
+  static const patternId = 'id';
+  static const patternName = 'nombre';
+  static const patternType = 'tipo';
+  static const patternDesignId = 'design_id';
+  static const patternDifficulty = 'dificultad';
+  static const patternMaterial = 'material_sugerido';
+  static const patternHookSize = 'tamano_gancho';
+  static const patternStatus = 'estado';
+  static const patternRawText = 'texto_patron';
+  static const patternUserId = 'usuario_id';
+  static const patternCreatedAt = 'fecha_creacion';
+  static const patternUpdatedAt = 'fecha_actualizacion';
+
+  // ============ COLUMNAS - CATALOG_SETTINGS ============
+  static const catalogId = 'id';
+  static const catalogUserId = 'usuario_id';
+  static const catalogIsPublic = 'es_publico';
+  static const catalogBusinessName = 'nombre_negocio';       // <-- NUEVO
+  static const catalogContactEmail = 'email_contacto';       // <-- NUEVO
+  static const catalogContactPhone = 'telefono_contacto';    // <-- NUEVO
+  static const catalogContactInstagram = 'instagram_contacto';// <-- NUEVO
+  static const catalogFeaturedProducts = 'productos_destacados';
+  static const catalogFeaturedPatterns = 'patrones_destacados';// <-- NUEVO
+  static const catalogCreatedAt = 'fecha_creacion';
+  static const catalogUpdatedAt = 'fecha_actualizacion';
 
   // Singleton
   DatabaseHelper._privateConstructor();
@@ -291,6 +321,52 @@ class DatabaseHelper {
         print("Error en migración v6: $e");
       }
     }
+
+    if (oldVersion < 7) {
+      try {
+        await db.execute('''
+          CREATE TABLE $tablePatterns (
+            $patternId INTEGER PRIMARY KEY AUTOINCREMENT,
+            $patternName TEXT NOT NULL,
+            $patternType TEXT NOT NULL,
+            $patternDesignId INTEGER NOT NULL,
+            $patternDifficulty TEXT DEFAULT 'beginner',
+            $patternMaterial TEXT DEFAULT '',
+            $patternHookSize TEXT DEFAULT '',
+            $patternStatus TEXT DEFAULT 'draft',
+            $patternRawText TEXT DEFAULT '',
+            $patternUserId TEXT NOT NULL,
+            $patternCreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            $patternUpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY ($patternDesignId) REFERENCES $tableDesigns($designId) ON DELETE CASCADE
+          )
+        ''');
+      } catch (e) {
+        print("Error en migración v7: $e");
+      }
+    }
+
+    if (oldVersion < 8) {
+      try {
+        await db.execute('''
+          CREATE TABLE $tableCatalogSettings (
+            $catalogId INTEGER PRIMARY KEY AUTOINCREMENT,
+            $catalogUserId TEXT NOT NULL UNIQUE,
+            $catalogIsPublic INTEGER DEFAULT 0,
+            $catalogBusinessName TEXT DEFAULT '',
+            $catalogContactEmail TEXT DEFAULT '',
+            $catalogContactPhone TEXT DEFAULT '',
+            $catalogContactInstagram TEXT DEFAULT '',
+            $catalogFeaturedProducts TEXT DEFAULT '[]',
+            $catalogFeaturedPatterns TEXT DEFAULT '[]',
+            $catalogCreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            $catalogUpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+        ''');
+      } catch (e) {
+        print("Error en migración v8: $e");
+      }
+    }
   }
 
   // ==========================================
@@ -318,9 +394,11 @@ class DatabaseHelper {
   }
 
   Future<int> update(String table, Map<String, dynamic> row) async {
+    final id = row['id'];
+    if (id == null) throw ArgumentError("El mapa debe contener la clave 'id' para actualizar '$table'");
     Database db = await instance.database;
-    int id = row['id'];
-    return await db.update(table, row, where: 'id = ?', whereArgs: [id]);
+    final data = Map<String, dynamic>.from(row)..remove('id');
+    return await db.update(table, data, where: 'id = ?', whereArgs: [id]);
   }
 
   Future<int> delete(String table, int id) async {
@@ -531,6 +609,82 @@ Future<void> cancelAndReturnStock(int orderId) async {
     await txn.delete(tableOrders, where: 'id = ?', whereArgs: [orderId]);
   });
 }
+// ==========================================
+  // MÉTODOS ESPECÍFICOS PARA PRODUCTOS (INVENTARIO)
+  // ==========================================
+
+  /// Inserta un nuevo producto
+  Future<int> addProduct(Map<String, dynamic> productData) async {
+    return await insert(tableProducts, productData);
+  }
+
+  /// Obtiene todos los productos ordenados por nombre
+  Future<List<Map<String, dynamic>>> getAllProducts() async {
+    Database db = await instance.database;
+    return await db.query(tableProducts, orderBy: '$productName ASC');
+  }
+
+  /// Actualiza un producto por su ID
+  Future<int> updateProduct(int id, Map<String, dynamic> updates) async {
+    Database db = await instance.database;
+    return await db.update(
+      tableProducts,
+      updates,
+      where: '$productId = ?',
+      whereArgs: [id],
+    );
+  }
+
+  /// Elimina un producto
+  Future<int> deleteProduct(int id) async {
+    return await delete(tableProducts, id);
+  }
+
+  /// Obtiene la cantidad actual de stock de un producto
+  Future<int?> getProductQuantity(int id) async {
+    Database db = await instance.database;
+    List<Map<String, dynamic>> result = await db.query(
+      tableProducts,
+      columns: [productQuantity],
+      where: '$productId = ?',
+      whereArgs: [id],
+    );
+    return result.isNotEmpty ? result.first[productQuantity] as int : null;
+  }
+
+  /// Actualiza la cantidad de stock directamente
+  Future<void> updateProductQuantity(int id, int newQuantity) async {
+    Database db = await instance.database;
+    await db.update(
+      tableProducts,
+      {
+        productQuantity: newQuantity,
+        productUpdatedAt: DateTime.now().toIso8601String(),
+      },
+      where: '$productId = ?',
+      whereArgs: [id],
+    );
+  }
+
+  /// Busca productos por coincidencia de texto
+  Future<List<Map<String, dynamic>>> searchProducts(String query) async {
+    Database db = await instance.database;
+    return await db.query(
+      tableProducts,
+      where: '$productName LIKE ? OR $productDescription LIKE ? OR categoria LIKE ?',
+      whereArgs: ['%$query%', '%$query%', '%$query%'],
+    );
+  }
+
+  /// Filtra productos por categoría
+  Future<List<Map<String, dynamic>>> getProductsByCategory(String category) async {
+    Database db = await instance.database;
+    return await db.query(
+      tableProducts,
+      where: 'categoria = ?',
+      whereArgs: [category],
+    );
+  }
   // ==========================================
   // MÉTODOS ESPECÍFICOS PARA USUARIOS
   // ==========================================
@@ -587,12 +741,11 @@ Future<void> cancelAndReturnStock(int orderId) async {
       _database = null;
     }
   }
-
-  // ==========================================
+// ==========================================
   // MÉTODOS ESPECÍFICOS PARA DESIGNS
   // ==========================================
 
-  Future<void> createDesign(dynamic designModel) async {
+  Future<void> createDesign(DesignModel designModel) async {
     final db = await database;
     await db.insert(tableDesigns, designModel.toMap());
   }
@@ -616,14 +769,13 @@ Future<void> cancelAndReturnStock(int orderId) async {
     return maps.isNotEmpty ? DesignModel.fromMap(maps.first) : null;
   }
 
-  Future<void> updateDesign(dynamic designModel) async {
+  Future<void> updateDesign(DesignModel designModel) async {
     final db = await database;
-    final map = designModel.toMap();
     await db.update(
       tableDesigns,
-      map,
+      designModel.toMap(),
       where: '$designId = ?',
-      whereArgs: [map['id']],
+      whereArgs: [designModel.id], // <-- Usamos directamente el ID del modelo
     );
   }
 
@@ -635,4 +787,130 @@ Future<void> cancelAndReturnStock(int orderId) async {
       whereArgs: [id],
     );
   }
+  // ==========================================
+  // MÉTODOS ESPECÍFICOS PARA PATTERNS
+  // ==========================================
+
+  Future<void> createPattern(dynamic patternModel) async {
+    final db = await database;
+    await db.insert(tablePatterns, patternModel.toMap());
+  }
+
+  Future<List<PatternModel>> getAllPatterns() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      tablePatterns,
+      orderBy: '$patternCreatedAt DESC',
+    );
+    return maps.map((m) => PatternModel.fromMap(m)).toList();
+  }
+
+  Future<List<PatternModel>> getPatternsByUser(String userId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      tablePatterns,
+      where: '$patternUserId = ?',
+      whereArgs: [userId],
+      orderBy: '$patternCreatedAt DESC',
+    );
+    return maps.map((m) => PatternModel.fromMap(m)).toList();
+  }
+
+  Future<List<PatternModel>> getPatternsByDesign(int designId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      tablePatterns,
+      where: '$patternDesignId = ?',
+      whereArgs: [designId],
+      orderBy: '$patternCreatedAt DESC',
+    );
+    return maps.map((m) => PatternModel.fromMap(m)).toList();
+  }
+
+  Future<PatternModel?> getPatternById(int id) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      tablePatterns,
+      where: '$patternId = ?',
+      whereArgs: [id],
+    );
+    return maps.isNotEmpty ? PatternModel.fromMap(maps.first) : null;
+  }
+
+  Future<void> updatePattern(dynamic patternModel) async {
+    final db = await database;
+    final map = patternModel.toMap();
+    await db.update(
+      tablePatterns,
+      map,
+      where: '$patternId = ?',
+      whereArgs: [map['id']],
+    );
+  }
+
+  Future<void> deletePattern(int id) async {
+    final db = await database;
+    await db.delete(
+      tablePatterns,
+      where: '$patternId = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> deletePatternsByDesign(int designId) async {
+    final db = await database;
+    await db.delete(
+      tablePatterns,
+      where: '$patternDesignId = ?',
+      whereArgs: [designId],
+    );
+  }
+
+  // ==========================================
+  // MÉTODOS ESPECÍFICOS PARA CATALOG_SETTINGS
+  // ==========================================
+
+  Future<void> updateCatalogSettings(String userId, Map<String, dynamic> data) async {
+    final db = await database;
+    final existing = await db.query(
+      tableCatalogSettings,
+      where: '$catalogUserId = ?',
+      whereArgs: [userId],
+    );
+
+    if (existing.isEmpty) {
+      await db.insert(tableCatalogSettings, {
+        ...data,
+        catalogUserId: userId,
+        catalogCreatedAt: DateTime.now().toIso8601String(),
+        catalogUpdatedAt: DateTime.now().toIso8601String(),
+      });
+    } else {
+      await db.update(
+        tableCatalogSettings,
+        {
+          ...data,
+          catalogUpdatedAt: DateTime.now().toIso8601String(),
+        },
+        where: '$catalogUserId = ?',
+        whereArgs: [userId],
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>?> getCatalogSettings(String userId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      tableCatalogSettings,
+      where: '$catalogUserId = ?',
+      whereArgs: [userId],
+      limit: 1,
+    );
+    return maps.isNotEmpty ? maps.first : null;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+  //  Catálogo Público (Landing)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  
 }

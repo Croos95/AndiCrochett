@@ -28,6 +28,8 @@ class InventoryProvider extends ChangeNotifier {
   String? _error;
   String? get error => _error;
 
+  bool _loadingInProgress = false;
+
   // ── Getters de conveniencia ────────────────────────────────────────────
 
   int get totalProducts => _products.length;
@@ -41,21 +43,38 @@ class InventoryProvider extends ChangeNotifier {
 
   // ── Operaciones ───────────────────────────────────────────────────────────
 
-  /// Carga todos los productos desde SQLite.
+
+/// Carga todos los productos y organiza los estados en memoria
   Future<void> loadProducts() async {
+    if (_loadingInProgress) return;
+    _loadingInProgress = true;
     _status = InventoryStatus.loading;
     notifyListeners();
 
     try {
-      _products = await _repo.getAllProducts();
-      _lowStockProducts = await _repo.getLowStockProducts();
-      _outOfStockProducts = await _repo.getOutOfStockProducts();
+      // 1. Una sola consulta al repositorio para traer todo
+      final allProducts = await _repo.getAllProducts();
+      _products = allProducts;
+
+      // 2. Filtramos la lista principal en memoria usando Dart
+      // Esto es mucho más rápido que ir a la base de datos 3 veces
+      _lowStockProducts = allProducts.where((p) => 
+        p.status == ProductStatus.lowStock
+      ).toList();
+
+      _outOfStockProducts = allProducts.where((p) => 
+        p.status == ProductStatus.outOfStock
+      ).toList();
+
       _status = InventoryStatus.loaded;
       _error = null;
     } catch (e) {
       _status = InventoryStatus.error;
-      _error = e.toString();
+      _error = 'Error al cargar inventario: ${e.toString()}';
+    } finally {
+      _loadingInProgress = false;
     }
+
     notifyListeners();
   }
 
@@ -63,9 +82,10 @@ class InventoryProvider extends ChangeNotifier {
   Future<bool> addProduct(ProductModel product) async {
     try {
       await _repo.createProduct(product);
-      await loadProducts(); // Recarga la lista
+      await loadProducts();
       return true;
     } catch (e) {
+      _status = InventoryStatus.error;
       _error = e.toString();
       notifyListeners();
       return false;
@@ -76,9 +96,10 @@ class InventoryProvider extends ChangeNotifier {
   Future<bool> updateProduct(ProductModel product) async {
     try {
       await _repo.updateProduct(product);
-      await loadProducts(); // Recarga la lista
+      await loadProducts();
       return true;
     } catch (e) {
+      _status = InventoryStatus.error;
       _error = e.toString();
       notifyListeners();
       return false;
@@ -89,9 +110,10 @@ class InventoryProvider extends ChangeNotifier {
   Future<bool> deleteProduct(int id) async {
     try {
       await _repo.deleteProduct(id);
-      await loadProducts(); // Recarga la lista
+      await loadProducts();
       return true;
     } catch (e) {
+      _status = InventoryStatus.error;
       _error = e.toString();
       notifyListeners();
       return false;
@@ -102,9 +124,10 @@ class InventoryProvider extends ChangeNotifier {
   Future<bool> adjustStock(int productId, int delta) async {
     try {
       await _repo.adjustStock(productId, delta);
-      await loadProducts(); // Recarga la lista
+      await loadProducts();
       return true;
     } catch (e) {
+      _status = InventoryStatus.error;
       _error = e.toString();
       notifyListeners();
       return false;
@@ -116,6 +139,7 @@ class InventoryProvider extends ChangeNotifier {
     try {
       return await _repo.getProductById(id);
     } catch (e) {
+      _status = InventoryStatus.error;
       _error = e.toString();
       notifyListeners();
       return null;

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:andicrochett/core/constants/colors.dart';
 import 'package:andicrochett/core/constants/sizes.dart';
@@ -33,24 +33,25 @@ class _DesignsPageState extends State<DesignsPage> {
   @override
   void dispose() {
     _searchCtrl.dispose();
+    _designRepo.dispose();
     super.dispose();
   }
 
-  void _openDetail(DesignDocument design) {
+  void _openDetail(DesignModel design) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => DesignDetailPage(designId: design.id)),
+      MaterialPageRoute(builder: (_) => DesignDetailPage(designId: design.id!)),
     );
   }
 
-  void _openEditor({DesignDocument? existing}) {
+  void _openEditor({DesignModel? existing}) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => DesignEditorPage(existing: existing)),
     );
   }
 
-  Future<void> _confirmDelete(DesignDocument design) async {
+  Future<void> _confirmDelete(DesignModel design) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -79,10 +80,8 @@ class _DesignsPageState extends State<DesignsPage> {
       ),
     );
     if (confirmed == true && mounted) {
-      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-      // Primero se eliminan todos los patrones del diseño y luego el diseño mismo.
-      await _patternRepo.deleteByDesign(design.id, userId: uid);
-      await _designRepo.delete(design.id);
+      await _patternRepo.deleteByDesign(design.id!);
+      await _designRepo.delete(design.id!);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -94,12 +93,9 @@ class _DesignsPageState extends State<DesignsPage> {
   @override
   Widget build(BuildContext context) {
     final userId = FirebaseAuth.instance.currentUser?.uid;
-    // Solo cargar diseños del usuario autenticado.
-    // Si no hay sesión activa se emite una lista vacía — watchAll() de todas
-    // formas sería rechazado por las reglas de seguridad de Firestore.
     final stream = userId != null
         ? _designRepo.watchByUser(userId)
-        : Stream.value(const <DesignDocument>[]);
+        : Stream.value(const <DesignModel>[]);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -110,7 +106,7 @@ class _DesignsPageState extends State<DesignsPage> {
             children: [
               _buildHeader(isMobile),
               Expanded(
-                child: StreamBuilder<List<DesignDocument>>(
+                child: StreamBuilder<List<DesignModel>>(
                   stream: stream,
                   builder: (context, snap) {
                     if (snap.connectionState == ConnectionState.waiting) {
@@ -149,18 +145,14 @@ class _DesignsPageState extends State<DesignsPage> {
                       );
                     }
 
-                    // Un único listener Firestore que trae todos los patrones
-                    // del usuario; los conteos por diseño se calculan localmente.
-                    return StreamBuilder<List<PatternDocument>>(
+                    return StreamBuilder<List<PatternModel>>(
                       stream: _patternRepo.watchByUser(userId ?? ''),
                       builder: (_, patSnap) {
                         final allPatterns = patSnap.data ?? [];
-                        final counts = <String, int>{
-                          for (final d in filtered)
-                            d.id: allPatterns
-                                .where((p) => p.designId == d.id)
-                                .length,
-                        };
+                        final counts = <int, int>{};
+                        for (final p in allPatterns) {
+                          counts[p.designId] = (counts[p.designId] ?? 0) + 1;
+                        }
                         return _DesignGrid(
                           designs: filtered,
                           isMobile: isMobile,
@@ -310,14 +302,14 @@ class _DesignGrid extends StatelessWidget {
     required this.onDelete,
   });
 
-  final List<DesignDocument> designs;
+  final List<DesignModel> designs;
   final bool isMobile;
 
   /// Conteo de patrones por design ID, calculado desde un único stream.
-  final Map<String, int> patternCounts;
-  final void Function(DesignDocument) onTap;
-  final void Function(DesignDocument) onEdit;
-  final void Function(DesignDocument) onDelete;
+  final Map<int, int> patternCounts;
+  final void Function(DesignModel) onTap;
+  final void Function(DesignModel) onEdit;
+  final void Function(DesignModel) onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -335,7 +327,7 @@ class _DesignGrid extends StatelessWidget {
           final d = designs[i];
           return DesignCard(
             design: d,
-            patternCount: patternCounts[d.id] ?? 0,
+            patternCount: patternCounts[d.id ?? 0] ?? 0,
             onTap: () => onTap(d),
             onEdit: () => onEdit(d),
             onDelete: () => onDelete(d),

@@ -34,7 +34,7 @@ class _PatternsPageState extends State<PatternsPage> {
     super.dispose();
   }
 
-  List<PatternDocument> _applyFilters(List<PatternDocument> all) {
+  List<PatternModel> _applyFilters(List<PatternModel> all) {
     return all.where((p) {
       final q = _searchQuery.toLowerCase();
       final matchSearch = q.isEmpty || p.name.toLowerCase().contains(q);
@@ -43,28 +43,35 @@ class _PatternsPageState extends State<PatternsPage> {
     }).toList();
   }
 
-  void _openEditor({PatternDocument? existing}) {
+  void _openEditor({PatternModel? existing}) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => PatternEditorPage(
-          designId: existing?.designId ?? '',
+          designId: existing?.designId ?? 0,
           existing: existing,
         ),
       ),
     );
   }
-
-  void _openDetail(PatternDocument pattern) {
+ //abre la vista de detalle del patron seleccionado
+  void _openDetail(PatternModel pattern) {
+    if (pattern.id == null) return;
+    //se usa navigator.push para abrir una nueva pagina
     Navigator.push(
+      //context es para navegar dentro del arbol de widgets actual
       context,
+      //MaterialPageRoute es una ruta que hace una transición de material design
       MaterialPageRoute(
-        builder: (_) => PatternDetailPage(patternId: pattern.id),
+        //builder es una función que recibe un contexto y devuelve el widget a mostrar
+        builder: (_) => PatternDetailPage(patternId: pattern.id as int),
+        //con el as int pattern.id que es un int opcional se fuerza a tratarlo como int Normalito,
+        //esto es seguro porque el botón de detalle solo se muestra si pattern.id no es null
       ),
     );
   }
 
-  Future<void> _confirmDelete(PatternDocument pattern) async {
+  Future<void> _confirmDelete(PatternModel pattern) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -91,8 +98,8 @@ class _PatternsPageState extends State<PatternsPage> {
         ],
       ),
     );
-    if (confirmed == true) {
-      await _repo.delete(pattern.id);
+    if (confirmed == true && pattern.id != null) {
+      await _repo.delete(pattern.id as int);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -109,7 +116,7 @@ class _PatternsPageState extends State<PatternsPage> {
     // formas sería rechazado por las reglas de seguridad de Firestore.
     final stream = userId != null
         ? _repo.watchByUser(userId)
-        : Stream.value(const <PatternDocument>[]);
+        : Stream.value(const <PatternModel>[]);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -121,7 +128,7 @@ class _PatternsPageState extends State<PatternsPage> {
               _buildHeader(isMobile),
               _buildFilterBar(isMobile),
               Expanded(
-                child: StreamBuilder<List<PatternDocument>>(
+                child: StreamBuilder<List<PatternModel>>(
                   stream: stream,
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
@@ -324,11 +331,11 @@ class _PatternGrid extends StatelessWidget {
     required this.onDelete,
   });
 
-  final List<PatternDocument> patterns;
+  final List<PatternModel> patterns;
   final bool isMobile;
-  final void Function(PatternDocument) onTap;
-  final void Function(PatternDocument) onEdit;
-  final void Function(PatternDocument) onDelete;
+  final void Function(PatternModel) onTap;
+  final void Function(PatternModel) onEdit;
+  final void Function(PatternModel) onDelete;
 
   @override
   Widget build(BuildContext context) {

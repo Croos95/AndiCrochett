@@ -6,7 +6,7 @@ import 'package:andicrochett/features/patterns/data/models/pattern_model.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  PatternCard
-//  Tarjeta resumen de un PatternDocument en la vista de lista.
+//  Tarjeta resumen de un PatternModel en la vista de lista.
 // ─────────────────────────────────────────────────────────────────────────────
 
 class PatternCard extends StatelessWidget {
@@ -18,7 +18,7 @@ class PatternCard extends StatelessWidget {
     required this.onDelete,
   });
 
-  final PatternDocument pattern;
+  final PatternModel pattern;
   final VoidCallback onTap;
   final VoidCallback onEdit;
   final VoidCallback onDelete;

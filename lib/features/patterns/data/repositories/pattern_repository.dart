@@ -1,112 +1,79 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
+import 'package:andicrochett/database_helper.dart';
 import 'package:andicrochett/features/patterns/data/models/pattern_model.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  PatternRepository
-//  Única fuente de verdad para CRUD en Firestore sobre la colección 'patterns'.
-// ─────────────────────────────────────────────────────────────────────────────
-
+/// Repositorio de Patrones usando SQLite de forma directa
 class PatternRepository {
-  PatternRepository({FirebaseFirestore? firestore})
-    : _db = firestore ?? FirebaseFirestore.instance;
+  PatternRepository({DatabaseHelper? dbHelper})
+      : _db = dbHelper ?? DatabaseHelper.instance;
 
-  final FirebaseFirestore _db;
+  final DatabaseHelper _db;
 
-  CollectionReference<Map<String, dynamic>> get _col =>
-      _db.collection('patterns');
+  // ─────────────────────────────────────────────────────────────────────────
+  // Streams (Flujos de datos en tiempo real simulados)
+  // ─────────────────────────────────────────────────────────────────────────
 
-  // ── Lectura ───────────────────────────────────────────────────────────────
-
-  /// Stream de TODOS los patrones ordenados por fecha de creación, más reciente primero.
-  Stream<List<PatternDocument>> watchAll() {
-    return _col
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snap) => snap.docs.map(PatternDocument.fromDoc).toList());
+  Stream<List<PatternModel>> watchAll() async* {
+    yield await _db.getAllPatterns();
+    yield* _streamWithRefresh(() => _db.getAllPatterns());
   }
 
-  /// Stream de patrones que pertenecen a un usuario específico.
-  Stream<List<PatternDocument>> watchByUser(String userId) {
-    return _col
-        .where('userId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snap) => snap.docs.map(PatternDocument.fromDoc).toList());
+  Stream<List<PatternModel>> watchByUser(String userId) async* {
+    yield await _db.getPatternsByUser(userId);
+    yield* _streamWithRefresh(() => _db.getPatternsByUser(userId));
   }
 
-  /// Stream de un único documento de patrón por ID.
-  /// Emite null cuando el documento no existe.
-  Stream<PatternDocument?> watchById(String id) {
-    return _col
-        .doc(id)
-        .snapshots()
-        .map((snap) => snap.exists ? PatternDocument.fromDoc(snap) : null);
+  Stream<List<PatternModel>> watchByDesign(int designId) async* {
+    yield await _db.getPatternsByDesign(designId);
+    yield* _streamWithRefresh(() => _db.getPatternsByDesign(designId));
   }
 
-  /// Obtiene un único patrón por ID en una sola lectura.
-  Future<PatternDocument?> fetchById(String id) async {
-    final doc = await _col.doc(id).get();
-    if (!doc.exists) return null;
-    return PatternDocument.fromDoc(doc);
+  Stream<PatternModel?> watchById(int id) async* {
+    yield await _db.getPatternById(id);
+    yield* _streamWithRefresh(() => _db.getPatternById(id));
   }
 
-  // ── Escritura ─────────────────────────────────────────────────────────────
-
-  /// Crea un nuevo patrón. Devuelve el ID de documento generado.
-  Future<String> create(PatternDocument pattern) async {
-    final now = DateTime.now();
-    final data = pattern.copyWith(createdAt: now, updatedAt: now).toMap();
-    final ref = await _col.add(data);
-    return ref.id;
-  }
-
-  /// Actualiza un patrón existente por ID.
-  Future<void> update(PatternDocument pattern) async {
-    final data = pattern.copyWith(updatedAt: DateTime.now()).toMap();
-    await _col.doc(pattern.id).update(data);
-  }
-
-  /// Elimina un patrón por ID.
-  Future<void> delete(String id) async {
-    await _col.doc(id).delete();
-  }
-
-  // ── Helpers con contexto de diseño ────────────────────────────────────────
-
-  /// Stream de patrones que pertenecen a un diseño específico (filtrado por usuario).
-  Stream<List<PatternDocument>> watchByDesign(
-    String designId, {
-    required String userId,
-  }) {
-    return _col
-        .where('designId', isEqualTo: designId)
-        .where('userId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snap) => snap.docs.map(PatternDocument.fromDoc).toList());
-  }
-
-  /// Stream con el conteo de patrones de un diseño (filtrado por usuario).
-  Stream<int> countByDesign(String designId, {required String userId}) {
-    return _col
-        .where('designId', isEqualTo: designId)
-        .where('userId', isEqualTo: userId)
-        .snapshots()
-        .map((snap) => snap.docs.length);
-  }
-
-  /// Elimina TODOS los patrones que pertenecen a un diseño (borrado en lote).
-  /// El filtro [userId] garantiza que solo se borren los patrones del propietario,
-  /// evitando borrados accidentales entre usuarios.
-  Future<void> deleteByDesign(String designId, {required String userId}) async {
-    final snap = await _col
-        .where('designId', isEqualTo: designId)
-        .where('userId', isEqualTo: userId)
-        .get();
-    final batch = _db.batch();
-    for (final doc in snap.docs) {
-      batch.delete(doc.reference);
+  // Helper para streams con refresh periódico
+  Stream<T> _streamWithRefresh<T>(Future<T> Function() fetch) async* {
+    while (true) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      yield await fetch();
     }
-    await batch.commit();
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Fetch methods (Consultas únicas)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<List<PatternModel>> fetchAll() => _db.getAllPatterns();
+
+  Future<List<PatternModel>> fetchByUser(String userId) =>
+      _db.getPatternsByUser(userId);
+
+  Future<List<PatternModel>> fetchByDesign(int designId) =>
+      _db.getPatternsByDesign(designId);
+
+  Future<PatternModel?> fetchById(int id) => _db.getPatternById(id);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CRUD methods (Escritura y borrado)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<void> create(PatternModel pattern) async {
+    await _db.createPattern(pattern.toMap());
+  }
+
+  Future<void> update(PatternModel pattern) async {
+    if (pattern.id == null) throw Exception('El patrón no tiene ID');
+    await _db.updatePattern(pattern.toMap());
+  }
+
+  Future<void> delete(int id) => _db.deletePattern(id);
+
+  Future<void> deleteByDesign(int designId) => _db.deletePatternsByDesign(designId);
+
+  Future<int> countByDesign(int designId) async {
+    final patterns = await _db.getPatternsByDesign(designId);
+    return patterns.length;
   }
 }

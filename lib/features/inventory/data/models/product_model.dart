@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-
+//lib/features/inventory/data/models/product_model.dart
 enum ProductStatus { available, lowStock, outOfStock }
 
 extension ProductStatusX on ProductStatus {

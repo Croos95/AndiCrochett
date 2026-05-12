@@ -1,9 +1,9 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 /// Configuración del catálogo público del usuario.
 ///
-/// Se almacena en Firestore bajo 'catalog_settings/{userId}'.
+/// Se almacena en SQLite en la tabla 'catalog_settings'.
 @immutable
 class CatalogSettings {
   const CatalogSettings({
@@ -29,43 +29,52 @@ class CatalogSettings {
   final DateTime? updatedAt;
 
   factory CatalogSettings.empty(String userId) => CatalogSettings(
-        userId: userId,
-        isPublicCatalogEnabled: false,
-        businessName: '',
-        contactEmail: '',
-        contactPhone: '',
-        contactInstagram: '',
-      );
+    userId: userId,
+    isPublicCatalogEnabled: false,
+    businessName: '',
+    contactEmail: '',
+    contactPhone: '',
+    contactInstagram: '',
+  );
 
-  factory CatalogSettings.fromDoc(DocumentSnapshot doc) {
-    final d = doc.data() as Map<String, dynamic>? ?? {};
-    final contact = d['contactInfo'] as Map<String, dynamic>? ?? {};
+  factory CatalogSettings.fromMap(Map<String, dynamic> map) {
+    List<String> decodeList(String key) {
+      final val = map[key];
+      if (val != null && val.toString().isNotEmpty) {
+        try {
+          final decoded = jsonDecode(val.toString()) as List;
+          return decoded.map((e) => e.toString()).toList();
+        } catch (_) {}
+      }
+      return [];
+    }
+
     return CatalogSettings(
-      userId: doc.id,
-      isPublicCatalogEnabled: d['isPublicCatalogEnabled'] as bool? ?? false,
-      businessName: d['businessName'] as String? ?? '',
-      contactEmail: contact['email'] as String? ?? '',
-      contactPhone: contact['phone'] as String? ?? '',
-      contactInstagram: contact['instagram'] as String? ?? '',
-      featuredProducts: List<String>.from(d['featuredProducts'] ?? []),
-      featuredPatterns: List<String>.from(d['featuredPatterns'] ?? []),
-      updatedAt: (d['updatedAt'] as Timestamp?)?.toDate(),
+      userId: map['usuario_id'] as String? ?? '',
+      isPublicCatalogEnabled: (map['es_publico'] as int? ?? 0) == 1,
+      businessName: map['nombre_negocio'] as String? ?? '',
+      contactEmail: map['email_contacto'] as String? ?? '',
+      contactPhone: map['telefono_contacto'] as String? ?? '',
+      contactInstagram: map['instagram_contacto'] as String? ?? '',
+      featuredProducts: decodeList('productos_destacados'),
+      featuredPatterns: decodeList('patrones_destacados'),
+      updatedAt: map['fecha_actualizacion'] != null
+          ? DateTime.tryParse(map['fecha_actualizacion'] as String)
+          : null,
     );
   }
 
   Map<String, dynamic> toMap() => {
-        'isPublicCatalogEnabled': isPublicCatalogEnabled,
-        'businessName': businessName,
-        'contactInfo': {
-          'email': contactEmail,
-          'phone': contactPhone,
-          'instagram': contactInstagram,
-        },
-        'featuredProducts': featuredProducts,
-        'featuredPatterns': featuredPatterns,
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
-
+    'usuario_id': userId,
+    'es_publico': isPublicCatalogEnabled ? 1 : 0,
+    'nombre_negocio': businessName,
+    'email_contacto': contactEmail,
+    'telefono_contacto': contactPhone,
+    'instagram_contacto': contactInstagram,
+    'productos_destacados': jsonEncode(featuredProducts),
+    'patrones_destacados': jsonEncode(featuredPatterns),
+    // No enviamos fecha_creacion aquí para que el dbHelper la maneje
+  };
   CatalogSettings copyWith({
     String? userId,
     bool? isPublicCatalogEnabled,
@@ -76,17 +85,16 @@ class CatalogSettings {
     List<String>? featuredProducts,
     List<String>? featuredPatterns,
     DateTime? updatedAt,
-  }) =>
-      CatalogSettings(
-        userId: userId ?? this.userId,
-        isPublicCatalogEnabled:
-            isPublicCatalogEnabled ?? this.isPublicCatalogEnabled,
-        businessName: businessName ?? this.businessName,
-        contactEmail: contactEmail ?? this.contactEmail,
-        contactPhone: contactPhone ?? this.contactPhone,
-        contactInstagram: contactInstagram ?? this.contactInstagram,
-        featuredProducts: featuredProducts ?? this.featuredProducts,
-        featuredPatterns: featuredPatterns ?? this.featuredPatterns,
-        updatedAt: updatedAt ?? this.updatedAt,
-      );
+  }) => CatalogSettings(
+    userId: userId ?? this.userId,
+    isPublicCatalogEnabled:
+        isPublicCatalogEnabled ?? this.isPublicCatalogEnabled,
+    businessName: businessName ?? this.businessName,
+    contactEmail: contactEmail ?? this.contactEmail,
+    contactPhone: contactPhone ?? this.contactPhone,
+    contactInstagram: contactInstagram ?? this.contactInstagram,
+    featuredProducts: featuredProducts ?? this.featuredProducts,
+    featuredPatterns: featuredPatterns ?? this.featuredPatterns,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
 }

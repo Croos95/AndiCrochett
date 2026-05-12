@@ -1,5 +1,4 @@
-﻿import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:andicrochett/core/constants/colors.dart';
 import 'package:andicrochett/core/constants/sizes.dart';
 import 'package:andicrochett/features/designs/data/models/design_model.dart';
@@ -19,7 +18,7 @@ import 'package:andicrochett/features/patterns/presentation/widgets/pattern_card
 class DesignDetailPage extends StatefulWidget {
   const DesignDetailPage({super.key, required this.designId});
 
-  final String designId;
+  final int designId;
 
   @override
   State<DesignDetailPage> createState() => _DesignDetailPageState();
@@ -29,7 +28,13 @@ class _DesignDetailPageState extends State<DesignDetailPage> {
   final _designRepo = DesignRepository();
   final _patternRepo = PatternRepository();
 
-  void _openPatternEditor({PatternDocument? existing}) {
+  @override
+  void dispose() {
+    _designRepo.dispose();
+    super.dispose();
+  }
+
+  void _openPatternEditor({PatternModel? existing}) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -39,16 +44,16 @@ class _DesignDetailPageState extends State<DesignDetailPage> {
     );
   }
 
-  void _openPatternDetail(PatternDocument pattern) {
+  void _openPatternDetail(PatternModel pattern) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => PatternDetailPage(patternId: pattern.id),
+        builder: (_) => PatternDetailPage(patternId: pattern.id!),
       ),
     );
   }
 
-  Future<void> _confirmDeletePattern(PatternDocument pattern) async {
+  Future<void> _confirmDeletePattern(PatternModel pattern) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -76,9 +81,7 @@ class _DesignDetailPageState extends State<DesignDetailPage> {
       ),
     );
     if (confirmed == true && mounted) {
-      await _patternRepo.delete(pattern.id);
-      // Verificar mounted después del await — el widget pudo desmontarse
-      // mientras esperaba la respuesta de Firestore.
+      await _patternRepo.delete(pattern.id!);
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -88,7 +91,7 @@ class _DesignDetailPageState extends State<DesignDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DesignDocument?>(
+    return StreamBuilder<DesignModel?>(
       stream: _designRepo.watchById(widget.designId),
       builder: (context, designSnap) {
         if (designSnap.connectionState == ConnectionState.waiting) {
@@ -134,22 +137,20 @@ class _DesignDetailContent extends StatelessWidget {
     required this.onEditDesign,
   });
 
-  final DesignDocument design;
+  final DesignModel design;
   final PatternRepository patternRepo;
   final VoidCallback onAddPattern;
-  final void Function(PatternDocument) onEditPattern;
-  final void Function(PatternDocument) onDeletePattern;
-  final void Function(PatternDocument) onTapPattern;
+  final void Function(PatternModel) onEditPattern;
+  final void Function(PatternModel) onDeletePattern;
+  final void Function(PatternModel) onTapPattern;
   final VoidCallback onEditDesign;
 
   @override
   Widget build(BuildContext context) {
-    final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
-
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: StreamBuilder<List<PatternDocument>>(
-        stream: patternRepo.watchByDesign(design.id, userId: userId),
+      body: StreamBuilder<List<PatternModel>>(
+        stream: patternRepo.watchByDesign(design.id!),
         builder: (context, patternSnap) {
           final patterns = patternSnap.data ?? [];
 

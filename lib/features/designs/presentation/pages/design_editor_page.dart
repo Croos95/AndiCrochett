@@ -13,7 +13,7 @@ import 'package:andicrochett/features/designs/data/repositories/design_repositor
 class DesignEditorPage extends StatefulWidget {
   const DesignEditorPage({super.key, this.existing});
 
-  final DesignDocument? existing;
+  final DesignModel? existing;
 
   @override
   State<DesignEditorPage> createState() => _DesignEditorPageState();
@@ -48,8 +48,8 @@ class _DesignEditorPageState extends State<DesignEditorPage> {
     try {
       final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
       final now = DateTime.now();
-      final doc = DesignDocument(
-        id: widget.existing?.id ?? '',
+      final doc = DesignModel(
+        id: widget.existing?.id,
         name: _nameCtrl.text.trim(),
         description: _descCtrl.text.trim(),
         userId: userId,

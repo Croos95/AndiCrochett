@@ -6,7 +6,7 @@ import 'package:andicrochett/features/designs/data/models/design_model.dart';
 
 // =============================================================================
 //  DesignCard
-//  Tarjeta resumen de un DesignDocument en la cuadrícula de diseños.
+//  Tarjeta resumen de un DesignModel en la cuadrícula de diseños.
 // =============================================================================
 
 class DesignCard extends StatelessWidget {
@@ -19,7 +19,7 @@ class DesignCard extends StatelessWidget {
     required this.onDelete,
   });
 
-  final DesignDocument design;
+  final DesignModel design;
   final int patternCount;
   final VoidCallback onTap;
   final VoidCallback onEdit;

@@ -3,14 +3,16 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:andicrochett/core/constants/colors.dart';
 import 'package:andicrochett/core/constants/sizes.dart';
 import 'package:andicrochett/features/agenda/data/models/order_model.dart';
-import 'package:andicrochett/features/agenda/data/repositories/agenda_repository.dart';
+import 'package:andicrochett/features/agenda/data/repositories/order_repository.dart';
 import 'package:andicrochett/features/agenda/presentation/pages/agenda_page.dart';
 import 'package:andicrochett/features/auth/presentation/pages/profile_page.dart';
 import 'package:andicrochett/features/dashboard/presentation/widgets/dashboard_footer.dart';
 import 'package:andicrochett/features/dashboard/presentation/widgets/sidebar_menu.dart';
 import 'package:andicrochett/features/designs/presentation/pages/designs_page.dart';
+import 'package:andicrochett/features/inventory/data/models/product_model.dart';
 import 'package:andicrochett/features/inventory/data/repositories/inventory_repository.dart';
 import 'package:andicrochett/features/inventory/presentation/pages/inventory_page.dart';
+import 'package:andicrochett/features/patterns/data/models/pattern_model.dart';
 import 'package:andicrochett/features/patterns/data/repositories/pattern_repository.dart';
 
 class DashboardPage extends StatefulWidget {
@@ -111,14 +113,22 @@ class _HomeView extends StatefulWidget {
 
 class _HomeViewState extends State<_HomeView> {
   final _inventoryRepo = InventoryRepository();
-  final _agendaRepo = AgendaRepository();
+  final _orderRepo = OrderRepository();
   final _patternRepo = PatternRepository();
 
-  String get _userId => FirebaseAuth.instance.currentUser?.uid ?? '';
+  late final Future<List<ProductModel>> _productsFuture;
+  late final String _uid;
+
+  @override
+  void initState() {
+    super.initState();
+    _uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    _productsFuture = _inventoryRepo.getAllProducts();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final uid = _userId;
+    final uid = _uid;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(Sizes.xl),
       child: Column(
@@ -138,9 +148,8 @@ class _HomeViewState extends State<_HomeView> {
             spacing: Sizes.md,
             runSpacing: Sizes.md,
             children: [
-              // Añadido <List<dynamic>> para resolver el error de .length
-              StreamBuilder<List<dynamic>>(
-                stream: _inventoryRepo.watchByUser(uid), 
+              FutureBuilder<List<ProductModel>>(
+                future: _productsFuture,
                 builder: (_, snap) => _DashboardCard(
                   title: 'Inventario',
                   value: '${snap.data?.length ?? 0}',
@@ -151,7 +160,7 @@ class _HomeViewState extends State<_HomeView> {
               ),
               // Añadido <List<OrderModel>> para resolver el error en .where() y .length
               StreamBuilder<List<OrderModel>>(
-                stream: _agendaRepo.watchByUser(uid),
+                stream: _orderRepo.watchByUser(uid),
                 builder: (_, snap) {
                   final pending = snap.data?.where(
                         (o) => o.status == OrderStatus.pending || o.status == OrderStatus.inProgress,
@@ -165,8 +174,7 @@ class _HomeViewState extends State<_HomeView> {
                   );
                 },
               ),
-              // Añadido <List<dynamic>> para resolver el error de .length
-              StreamBuilder<List<dynamic>>(
+              StreamBuilder<List<PatternModel>>(
                 stream: _patternRepo.watchByUser(uid),
                 builder: (_, snap) => _DashboardCard(
                   title: 'Patrones',
@@ -215,7 +223,7 @@ class _DashboardCard extends StatelessWidget {
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15), // Cambiado a withOpacity para mayor compatibilidad
+              color: color.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(Sizes.radiusMd),
             ),
             child: Icon(icon, color: color, size: 32),

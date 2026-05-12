@@ -54,7 +54,7 @@ class OrderItem {
     productId: m['producto_id'],
     productName: m['nombre_producto'] ?? '',
     quantity: m['cantidad'] ?? 0,
-    unitPrice: (m['precio_unitario'] as num).toDouble(),
+    unitPrice: (m['precio_unitario'] as num?)?.toDouble() ?? 0.0,
   );
 }
 
