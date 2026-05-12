@@ -190,3 +190,5 @@ Los documentos técnicos heredados (verificación de email, configuración Fireb
 ## Licencia
 
 Proyecto académico — Taller de Full Stack.
+
+Prueba pipeline
