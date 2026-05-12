@@ -7,7 +7,7 @@ import 'package:andicrochett/features/patterns/data/models/pattern_model.dart';
 class DatabaseHelper {
   // Configuración de la base de datos
   static const _databaseName = "andicrochett.db";
-  static const _databaseVersion = 8;
+  static const _databaseVersion = 9;
   
   // Nueva columna para preferencias de usuario
   static const userSettings = 'settings'; 
@@ -54,6 +54,7 @@ class DatabaseHelper {
   static const orderId = 'id';
   static const orderUserId = 'usuario_id';
   static const orderClientId = 'cliente_id';
+  static const orderClientName = 'nombre_cliente';
   static const orderDate = 'fecha_pedido';
   static const orderDueDate = 'fecha_entrega';
   static const orderTotal = 'total';
@@ -186,6 +187,7 @@ class DatabaseHelper {
         $orderId INTEGER PRIMARY KEY AUTOINCREMENT,
         $orderUserId TEXT NOT NULL,
         $orderClientId INTEGER,
+        $orderClientName TEXT DEFAULT '',
         $orderDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         $orderDueDate TIMESTAMP,
         $orderTotal REAL NOT NULL,
@@ -367,6 +369,16 @@ class DatabaseHelper {
         print("Error en migración v8: $e");
       }
     }
+
+    if (oldVersion < 9) {
+      try {
+        await db.execute(
+          'ALTER TABLE $tableOrders ADD COLUMN $orderClientName TEXT DEFAULT ""',
+        );
+      } catch (e) {
+        print("Error en migración v9: $e");
+      }
+    }
   }
 
   // ==========================================
@@ -480,7 +492,7 @@ Future<int> createOrderFull(OrderModel order) async {
   Future<OrderModel?> getOrderById(int id) async {
     Database db = await instance.database;
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
-      SELECT o.*, c.$clientName as nombre_cliente
+      SELECT o.*, COALESCE(NULLIF(o.$orderClientName,''), c.$clientName, '') as nombre_cliente
       FROM $tableOrders o
       LEFT JOIN $tableClients c ON o.$orderClientId = c.$clientId
       WHERE o.$orderId = ?
@@ -523,6 +535,7 @@ Future<int> createOrderFull(OrderModel order) async {
         {
           orderUserId: order.userId,
           orderClientId: order.clientId,
+          orderClientName: order.clientName,
           orderDate: order.createdAt.toIso8601String(),
           orderDueDate: order.dueDate?.toIso8601String(),
           orderTotal: order.totalPrice,
@@ -562,7 +575,7 @@ Future<List<OrderModel>> getAllOrdersWithItems() async {
 
   // Consulta con JOIN para datos del cliente
   final List<Map<String, dynamic>> orderMaps = await db.rawQuery('''
-    SELECT o.*, c.$clientName as nombre_cliente 
+    SELECT o.*, COALESCE(NULLIF(o.$orderClientName,''), c.$clientName, '') as nombre_cliente
     FROM $tableOrders o
     LEFT JOIN $tableClients c ON o.$orderClientId = c.$clientId
     ORDER BY o.$orderDate DESC
@@ -791,9 +804,9 @@ Future<void> cancelAndReturnStock(int orderId) async {
   // MÉTODOS ESPECÍFICOS PARA PATTERNS
   // ==========================================
 
-  Future<void> createPattern(dynamic patternModel) async {
+  Future<void> createPattern(Map<String, dynamic> patternMap) async {
     final db = await database;
-    await db.insert(tablePatterns, patternModel.toMap());
+    await db.insert(tablePatterns, patternMap);
   }
 
   Future<List<PatternModel>> getAllPatterns() async {
@@ -837,14 +850,16 @@ Future<void> cancelAndReturnStock(int orderId) async {
     return maps.isNotEmpty ? PatternModel.fromMap(maps.first) : null;
   }
 
-  Future<void> updatePattern(dynamic patternModel) async {
+  Future<void> updatePattern(Map<String, dynamic> patternMap) async {
     final db = await database;
-    final map = patternModel.toMap();
+    final id = patternMap['id'];
+    if (id == null) throw ArgumentError('El mapa debe contener "id" para actualizar un patrón');
+    final data = Map<String, dynamic>.from(patternMap)..remove('id');
     await db.update(
       tablePatterns,
-      map,
+      data,
       where: '$patternId = ?',
-      whereArgs: [map['id']],
+      whereArgs: [id],
     );
   }
 

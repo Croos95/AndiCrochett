@@ -27,9 +27,22 @@ class AgendaPage extends StatefulWidget {
 
 class _AgendaPageState extends State<AgendaPage> {
   final OrderRepository _repo = OrderRepository();
+  late final Stream<List<OrderModel>> _ordersStream;
   DateTime _selectedDay = DateTime.now();
 
   String get _userId => FirebaseAuth.instance.currentUser?.uid ?? '';
+
+  @override
+  void initState() {
+    super.initState();
+    _ordersStream = _repo.watchByUser(_userId);
+  }
+
+  @override
+  void dispose() {
+    _repo.dispose();
+    super.dispose();
+  }
 
   void _showOrderForm({OrderModel? existing}) {
     showDialog(
@@ -87,7 +100,7 @@ class _AgendaPageState extends State<AgendaPage> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<OrderModel>>(
-      stream: _repo.watchByUser(_userId),
+      stream: _ordersStream,
       builder: (context, snapshot) {
         final allOrders = snapshot.data ?? [];
         final dayOrders = allOrders
@@ -194,12 +207,15 @@ class _AgendaPageState extends State<AgendaPage> {
             ),
           ),
           SizedBox(
-            height: 36,
+            height: Sizes.buttonHeightSm,
             child: ElevatedButton(
               onPressed: () => _showOrderForm(),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.resaltado,
                 foregroundColor: Colors.white,
+                minimumSize: const Size(0, Sizes.buttonHeightSm),
+                padding: const EdgeInsets.symmetric(horizontal: Sizes.md),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -246,7 +262,11 @@ class _AgendaPageState extends State<AgendaPage> {
           ),
           const SizedBox(width: Sizes.lg),
           // Lista de pedidos del día
-          Expanded(child: _buildOrdersList(dayOrders)),
+          Expanded(
+            child: SingleChildScrollView(
+              child: _buildOrdersList(dayOrders),
+            ),
+          ),
         ],
       ),
     );

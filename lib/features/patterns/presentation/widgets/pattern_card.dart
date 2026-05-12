@@ -74,21 +74,26 @@ class PatternCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _TypeBadge(
-                            label: pattern.type.label,
-                            color: _typeColor,
+                          Expanded(
+                            child: Wrap(
+                              spacing: Sizes.xs,
+                              runSpacing: 4,
+                              children: [
+                                _TypeBadge(
+                                  label: pattern.type.label,
+                                  color: _typeColor,
+                                ),
+                                _TypeBadge(
+                                  label: pattern.difficulty.label,
+                                  color: pattern.difficulty.color,
+                                ),
+                                if (hasErrors)
+                                  _ErrorBadge(count: errors.length),
+                              ],
+                            ),
                           ),
-                          const SizedBox(width: Sizes.xs),
-                          _TypeBadge(
-                            label: pattern.difficulty.label,
-                            color: pattern.difficulty.color,
-                          ),
-                          if (hasErrors) ...[
-                            const SizedBox(width: Sizes.xs),
-                            _ErrorBadge(count: errors.length),
-                          ],
-                          const Spacer(),
                           CardContextMenu(onEdit: onEdit, onDelete: onDelete),
                         ],
                       ),
