@@ -9,7 +9,7 @@
   "scripts": {
     "serve": "firebase emulators:start --only functions,hosting",
     "deploy": "firebase deploy --only functions,hosting",
-    "test": "node --test \"test/**/*.test.js\"",
+    "test": "node --test test/",
     "lint": "node --check index.js && node --check middleware/auth.js"
   },
   "dependencies": {
