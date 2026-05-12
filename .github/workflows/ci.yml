@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  flutter-test:
+    name: Flutter analyze + test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolver dependencias
+        run: flutter pub get
+
+      - name: Analizar codigo
+        run: flutter analyze --no-fatal-warnings --no-fatal-infos
+        continue-on-error: true
+
+      - name: Pruebas unitarias y de integracion
+        # -j 1: los tests de integracion comparten el archivo SQLite, asi que
+        # se corren en serie para evitar races entre isolates.
+        # Excluye integration_test/ del runner por defecto: ese se corre en device.
+        run: flutter test test/ -j 1
+
+      - name: Build web (verificacion de empaquetado)
+        run: flutter build web --no-tree-shake-icons
+        continue-on-error: true
+
+  functions-lint:
+    name: Cloud Functions (lint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: functions
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Tests del middleware
+        run: npm test

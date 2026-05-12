@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import 'package:andicrochett/features/analytics/presentation/pages/analytics_dashboard_page.dart';
 import 'package:andicrochett/features/auth/presentation/pages/login_page.dart';
 import 'package:andicrochett/features/auth/presentation/pages/register_page.dart';
 import 'package:andicrochett/features/auth/presentation/providers/auth_provider.dart';
@@ -23,6 +24,7 @@ class AppRoutes {
   static const String login = '/login';
   static const String register = '/register';
   static const String dashboard = '/dashboard';
+  static const String analytics = '/analytics';
 
   // ── Router factory ──────────────────────────────────────────────────────────
   /// Crea el [GoRouter] de la app. Llamar una vez al inicio y reutilizar.
@@ -44,6 +46,7 @@ class AppRoutes {
       GoRoute(path: login, builder: (_, __) => const LoginPage()),
       GoRoute(path: register, builder: (_, __) => const RegisterPage()),
       GoRoute(path: dashboard, builder: (_, __) => const DashboardPage()),
+      GoRoute(path: analytics, builder: (_, __) => const AnalyticsDashboardPage()),
     ],
   );
 }

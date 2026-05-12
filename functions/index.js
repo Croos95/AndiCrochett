@@ -4,6 +4,8 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 
+const { authenticate } = require("./middleware/auth");
+
 const app = express();
 
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "https://andicrochett-bcb21.web.app,http://localhost:5000")
@@ -44,6 +46,8 @@ app.use((req, res, next) => {
   next();
 });
 
+// ── Rutas públicas ──────────────────────────────────────────────────────────
+
 app.get("/health", (req, res) => {
   res.status(200).json({
     ok: true,
@@ -51,6 +55,28 @@ app.get("/health", (req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+// ── Rutas protegidas (requieren Firebase ID token) ──────────────────────────
+//
+// El middleware `authenticate()` exige `Authorization: Bearer <token>` con
+// un ID token válido emitido por Firebase Auth del proyecto.
+// Si el token falta, expira o es inválido devuelve 401 con detalle.
+
+const secure = express.Router();
+secure.use(authenticate());
+
+secure.get("/me", (req, res) => {
+  // El middleware adjuntó `req.user` con uid/email/emailVerified/authTime.
+  res.status(200).json({ user: req.user });
+});
+
+secure.get("/ping", (req, res) => {
+  res.status(200).json({ ok: true, uid: req.user.uid });
+});
+
+app.use("/secure", secure);
+
+// ── Manejo de errores ───────────────────────────────────────────────────────
 
 app.use((err, req, res, next) => {
   if (err && err.message && err.message.includes("CORS")) {
@@ -71,3 +97,7 @@ exports.api = onRequest(
   },
   app,
 );
+
+// Export para pruebas — permite hacer supertest contra `app` sin levantar
+// Cloud Functions.
+module.exports.app = app;

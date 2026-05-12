@@ -1,3 +1,4 @@
+import 'package:andicrochett/core/services/analytics_service.dart';
 import 'package:andicrochett/database_helper.dart';
 import 'package:andicrochett/features/inventory/data/models/product_model.dart';
 
@@ -86,7 +87,9 @@ class InventoryRepository {
   /// Crea un nuevo producto en el inventario.
   Future<int> createProduct(ProductModel product) async {
     try {
-      return await _db.addProduct(product.toMap());
+      final id = await _db.addProduct(product.toMap());
+      AnalyticsService.instance.logProductCreated(productId: id, name: product.name);
+      return id;
     } catch (e) {
       throw Exception('Error al crear producto: $e');
     }
