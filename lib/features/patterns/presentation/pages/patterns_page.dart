@@ -28,6 +28,19 @@ class _PatternsPageState extends State<PatternsPage> {
   String _searchQuery = '';
   PatternType? _selectedType;
 
+  late final Stream<List<PatternModel>> _patternsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    // El stream se crea una sola vez para evitar que cada setState
+    // (búsqueda/filtros) reinicie el StreamBuilder y muestre el loader.
+    _patternsStream = userId != null
+        ? _repo.watchByUser(userId)
+        : Stream<List<PatternModel>>.value(const []);
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -111,14 +124,6 @@ class _PatternsPageState extends State<PatternsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    // Solo cargar patrones del usuario autenticado.
-    // Si no hay sesión activa se emite una lista vacía — watchAll() de todas
-    // formas sería rechazado por las reglas de seguridad de Firestore.
-    final stream = userId != null
-        ? _repo.watchByUser(userId)
-        : Stream.value(const <PatternModel>[]);
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 600;
@@ -130,7 +135,7 @@ class _PatternsPageState extends State<PatternsPage> {
               _buildFilterBar(isMobile),
               Expanded(
                 child: StreamBuilder<List<PatternModel>>(
-                  stream: stream,
+                  stream: _patternsStream,
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(

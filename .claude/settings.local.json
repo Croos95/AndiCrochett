@@ -6,7 +6,11 @@
       "Bash(flutter test *)",
       "Bash(npm install *)",
       "Bash(npm test *)",
-      "Bash(git mv *)"
+      "Bash(git mv *)",
+      "Bash(flutter --version)",
+      "Bash(flutter config *)",
+      "Bash(flutter devices *)",
+      "Bash(flutter build *)"
     ]
   }
 }
