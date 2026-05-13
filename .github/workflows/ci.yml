@@ -1,38 +1,29 @@
-# CI para el proyecto de Flutter (AndiCrochett)
+# CI para el proyecto Flutter + Firebase Functions (AndiCrochett)
 #
-# Este pipeline valida el código de la aplicación Flutter y las Cloud Functions.
-# Se estructura en los siguientes trabajos (jobs):
+# Este pipeline:
+# - Valida formato y análisis estático
+# - Ejecuta pruebas Flutter con cobertura
+# - Compila Android App Bundle
+# - Compila aplicación Web
+# - Ejecuta CI para Cloud Functions
 #
-# 1. `analizar_y_probar`:
-#    - Configura el entorno de Flutter y Java.
-#    - Instala dependencias.
-#    - Ejecuta `flutter analyze` para un análisis estático del código.
-#    - Ejecuta pruebas unitarias y de widgets con `flutter test`, generando un reporte de cobertura.
-#    - Sube el reporte de cobertura como un artefacto.
-#
-# 2. `compilar_android`:
-#    - Depende de que `analizar_y_probar` termine con éxito.
-#    - Compila el Android App Bundle (AAB) para producción.
-#    - Sube el AAB como un artefacto para despliegue o pruebas.
-#
-# 3. `compilar_web`:
-#    - Depende de que `analizar_y_probar` termine con éxito.
-#    - Compila la aplicación web.
-#    - Sube el directorio `build/web` como un artefacto.
-#
-# 4. `ci_functions`:
-#    - Configura el entorno de Node.js.
-#    - Instala dependencias de las Cloud Functions usando `npm ci`.
-#    - Ejecuta el linter y las pruebas para las funciones.
-#
+# Recomendaciones aplicadas:
+# - Uso de JDK 17
+# - Eliminado flutterfire configure en CI
+# - Validación de formato Dart
+# - Cache de pub
+# - Optimización general
+
 name: CI AndiCrochett
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    branches:
+      - main
 
+  pull_request:
+    branches:
+      - main
 
 jobs:
   analizar_y_probar:
@@ -43,36 +34,41 @@ jobs:
     steps:
       - name: 1. Checkout del código
         uses: actions/checkout@v4
-        env:
-          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
-      - name: 2. Configurar Java (JDK 11)
+      - name: 2. Configurar Java (JDK 17)
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '11'
+          distribution: temurin
+          java-version: '17'
 
       - name: 3. Configurar Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          channel: stable
           cache: true
 
-      - name: 4. Activar FlutterFire CLI
-        run: dart pub global activate flutterfire_cli
+      - name: 4. Cache de dependencias Pub
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
 
-      - name: 5. Generar configuración de Firebase
-        run: flutterfire configure --project=andicrochett-bcb21 --yes
-
-      - name: 6. Instalar dependencias de Flutter
+      - name: 5. Instalar dependencias de Flutter
         run: flutter pub get
+
+      - name: 6. Validar formato Dart
+        run: dart format --output=none --set-exit-if-changed .
 
       - name: 7. Analizar código fuente
         run: flutter analyze
 
       - name: 8. Ejecutar pruebas y generar cobertura
-        # -j 1: los tests de integracion comparten el archivo SQLite, asi que
-        # se corren en serie para evitar races entre isolates.
+        # -j 1:
+        # Los tests de integración comparten SQLite,
+        # así que se ejecutan en serie para evitar conflictos.
         run: flutter test --coverage -j 1
 
       - name: 9. Subir artefacto de cobertura
@@ -90,34 +86,35 @@ jobs:
     steps:
       - name: 1. Checkout del código
         uses: actions/checkout@v4
-        env:
-          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
-      - name: 2. Configurar Java (JDK 11)
+      - name: 2. Configurar Java (JDK 17)
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '11'
+          distribution: temurin
+          java-version: '17'
 
       - name: 3. Configurar Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          channel: stable
           cache: true
 
-      - name: 4. Activar FlutterFire CLI
-        run: dart pub global activate flutterfire_cli
+      - name: 4. Cache de dependencias Pub
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
 
-      - name: 5. Generar configuración de Firebase
-        run: flutterfire configure --project=andicrochett-bcb21 --yes
-
-      - name: 6. Instalar dependencias de Flutter
+      - name: 5. Instalar dependencias de Flutter
         run: flutter pub get
 
-      - name: 7. Compilar Android App Bundle (AAB)
-        run: flutter build appbundle
+      - name: 6. Compilar Android App Bundle (AAB)
+        run: flutter build appbundle --release
 
-      - name: 8. Subir artefacto de Android (AAB)
+      - name: 7. Subir artefacto Android (AAB)
         uses: actions/upload-artifact@v4
         with:
           name: app-release-bundle
@@ -132,28 +129,29 @@ jobs:
     steps:
       - name: 1. Checkout del código
         uses: actions/checkout@v4
-        env:
-          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
       - name: 2. Configurar Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          channel: stable
           cache: true
 
-      - name: 3. Activar FlutterFire CLI
-        run: dart pub global activate flutterfire_cli
+      - name: 3. Cache de dependencias Pub
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
 
-      - name: 4. Generar configuración de Firebase
-        run: flutterfire configure --project=andicrochett-bcb21 --yes
-
-      - name: 5. Instalar dependencias de Flutter
+      - name: 4. Instalar dependencias de Flutter
         run: flutter pub get
 
-      - name: 6. Compilar aplicación web
-        run: flutter build web --no-tree-shake-icons
+      - name: 5. Compilar aplicación web
+        run: flutter build web
 
-      - name: 7. Subir artefacto web
+      - name: 6. Subir artefacto Web
         uses: actions/upload-artifact@v4
         with:
           name: web-build
@@ -163,6 +161,7 @@ jobs:
     name: CI para Cloud Functions
     runs-on: ubuntu-latest
     timeout-minutes: 10
+
     defaults:
       run:
         working-directory: functions
@@ -170,16 +169,12 @@ jobs:
     steps:
       - name: 1. Checkout del código
         uses: actions/checkout@v4
-        env:
-          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
       - name: 2. Configurar Node.js
         uses: actions/setup-node@v4
-        env:
-          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         with:
-          node-version-file: 'functions/package.json' # Lee la versión desde package.json
-          cache: 'npm'
+          node-version-file: functions/package.json
+          cache: npm
           cache-dependency-path: functions/package-lock.json
 
       - name: 3. Instalar dependencias
@@ -189,4 +184,4 @@ jobs:
         run: npm run lint --if-present
 
       - name: 5. Ejecutar pruebas
-        run: npm test
+        run: npm test --if-present

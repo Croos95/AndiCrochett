@@ -16,8 +16,7 @@ migrate_working_dir/
 *.iws
 .idea/
 
-# The .flutter-plugins and .flutter-plugins-dependencies files contain the list
-# of plugins, so that they can be regenerated at startup.
+# Flutter plugins
 .flutter-plugins
 .flutter-plugins-dependencies
 
@@ -30,22 +29,12 @@ build/
 .pub/
 pubspec.lock
 
-# Android Studio will place build artifacts here
+# Android Studio build artifacts
 /android/app/debug
 /android/app/profile
 /android/app/release
 
-# ── Firebase / Secrets ─────────────────────────────────────────────────────
-
-# Firebase options (contains API keys and project IDs)
-lib/firebase_options.dart
-
-# Google services files
-android/app/google-services.json
-ios/Runner/GoogleService-Info.plist
-macos/Runner/GoogleService-Info.plist
-
-# Firebase emulator data
+# ── Firebase Emulator ──────────────────────────────────────────────────────
 .firebase/
 firebase-debug.log
 firestore-debug.log
@@ -59,7 +48,7 @@ functions-debug.log
 # Firebase local config
 .firebaserc
 
-# Environment variables
+# ── Environment Variables / Secrets ───────────────────────────────────────
 .env
 .env.*
 !.env.example

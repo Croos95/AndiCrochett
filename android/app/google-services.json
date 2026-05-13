@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "891162012839",
+    "project_id": "andicrochett-bcb21",
+    "storage_bucket": "andicrochett-bcb21.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:891162012839:android:95c6b322ea13af8573ff82",
+        "android_client_info": {
+          "package_name": "com.example.andicrochett"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDWJcbZt356UvHuVuJk5iZUiKQHoUpjOws"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
