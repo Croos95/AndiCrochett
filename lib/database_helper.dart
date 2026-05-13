@@ -135,6 +135,7 @@ class DatabaseHelper {
       version: _databaseVersion,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
+      onOpen: _onOpen,
     );
   }
 
@@ -225,6 +226,42 @@ class DatabaseHelper {
         $designUserId TEXT NOT NULL,
         $designCreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         $designUpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    ''');
+
+    // Tabla de Patterns
+    await db.execute('''
+      CREATE TABLE $tablePatterns (
+        $patternId INTEGER PRIMARY KEY AUTOINCREMENT,
+        $patternName TEXT NOT NULL,
+        $patternType TEXT NOT NULL,
+        $patternDesignId INTEGER NOT NULL,
+        $patternDifficulty TEXT DEFAULT 'beginner',
+        $patternMaterial TEXT DEFAULT '',
+        $patternHookSize TEXT DEFAULT '',
+        $patternStatus TEXT DEFAULT 'draft',
+        $patternRawText TEXT DEFAULT '',
+        $patternUserId TEXT NOT NULL,
+        $patternCreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        $patternUpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY ($patternDesignId) REFERENCES $tableDesigns($designId) ON DELETE CASCADE
+      )
+    ''');
+
+    // Tabla de configuraciones de catálogo
+    await db.execute('''
+      CREATE TABLE $tableCatalogSettings (
+        $catalogId INTEGER PRIMARY KEY AUTOINCREMENT,
+        $catalogUserId TEXT NOT NULL UNIQUE,
+        $catalogIsPublic INTEGER DEFAULT 0,
+        $catalogBusinessName TEXT DEFAULT '',
+        $catalogContactEmail TEXT DEFAULT '',
+        $catalogContactPhone TEXT DEFAULT '',
+        $catalogContactInstagram TEXT DEFAULT '',
+        $catalogFeaturedProducts TEXT DEFAULT '[]',
+        $catalogFeaturedPatterns TEXT DEFAULT '[]',
+        $catalogCreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        $catalogUpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     ''');
   }
@@ -404,6 +441,59 @@ class DatabaseHelper {
         // Ignore: column may already exist
       }
     }
+
+    await _ensureCorePatternTables(db);
+  }
+
+  Future<void> _onOpen(Database db) async {
+    await _ensureCorePatternTables(db);
+  }
+
+  Future<void> _ensureCorePatternTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableDesigns (
+        $designId INTEGER PRIMARY KEY AUTOINCREMENT,
+        $designName TEXT NOT NULL,
+        $designDescription TEXT DEFAULT '',
+        $designUserId TEXT NOT NULL,
+        $designCreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        $designUpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tablePatterns (
+        $patternId INTEGER PRIMARY KEY AUTOINCREMENT,
+        $patternName TEXT NOT NULL,
+        $patternType TEXT NOT NULL,
+        $patternDesignId INTEGER NOT NULL,
+        $patternDifficulty TEXT DEFAULT 'beginner',
+        $patternMaterial TEXT DEFAULT '',
+        $patternHookSize TEXT DEFAULT '',
+        $patternStatus TEXT DEFAULT 'draft',
+        $patternRawText TEXT DEFAULT '',
+        $patternUserId TEXT NOT NULL,
+        $patternCreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        $patternUpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY ($patternDesignId) REFERENCES $tableDesigns($designId) ON DELETE CASCADE
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableCatalogSettings (
+        $catalogId INTEGER PRIMARY KEY AUTOINCREMENT,
+        $catalogUserId TEXT NOT NULL UNIQUE,
+        $catalogIsPublic INTEGER DEFAULT 0,
+        $catalogBusinessName TEXT DEFAULT '',
+        $catalogContactEmail TEXT DEFAULT '',
+        $catalogContactPhone TEXT DEFAULT '',
+        $catalogContactInstagram TEXT DEFAULT '',
+        $catalogFeaturedProducts TEXT DEFAULT '[]',
+        $catalogFeaturedPatterns TEXT DEFAULT '[]',
+        $catalogCreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        $catalogUpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    ''');
   }
 
   // ==========================================
