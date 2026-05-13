@@ -28,15 +28,14 @@ class ClientModel {
     String? phone,
     String? address,
     DateTime? createdAt,
-  }) =>
-      ClientModel(
-        id: id ?? this.id,
-        name: name ?? this.name,
-        email: email ?? this.email,
-        phone: phone ?? this.phone,
-        address: address ?? this.address,
-        createdAt: createdAt ?? this.createdAt,
-      );
+  }) => ClientModel(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    email: email ?? this.email,
+    phone: phone ?? this.phone,
+    address: address ?? this.address,
+    createdAt: createdAt ?? this.createdAt,
+  );
 
   // ── Serialización para SQLite ─────────────────────────────────────────────
 

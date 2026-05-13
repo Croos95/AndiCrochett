@@ -12,7 +12,10 @@ void main() {
     test('fromString reconoce los valores SQLite', () {
       expect(ProductStatusX.fromString('available'), ProductStatus.available);
       expect(ProductStatusX.fromString('low_stock'), ProductStatus.lowStock);
-      expect(ProductStatusX.fromString('out_of_stock'), ProductStatus.outOfStock);
+      expect(
+        ProductStatusX.fromString('out_of_stock'),
+        ProductStatus.outOfStock,
+      );
     });
 
     test('fromString cae en available cuando recibe basura', () {
@@ -62,7 +65,10 @@ void main() {
         currentStock: 5,
       );
 
-      final next = base.copyWith(currentStock: 0, status: ProductStatus.outOfStock);
+      final next = base.copyWith(
+        currentStock: 0,
+        status: ProductStatus.outOfStock,
+      );
 
       expect(next.name, 'A');
       expect(next.price, 10);

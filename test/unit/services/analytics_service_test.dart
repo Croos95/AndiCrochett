@@ -37,7 +37,10 @@ void main() {
     });
 
     test('logProductCreated arma el payload tipado', () async {
-      await AnalyticsService.instance.logProductCreated(productId: 9, name: 'X');
+      await AnalyticsService.instance.logProductCreated(
+        productId: 9,
+        name: 'X',
+      );
 
       final call = sink.calls.single;
       expect(call.event, AnalyticsEvent.productCreated);

@@ -46,7 +46,10 @@ class AppRoutes {
       GoRoute(path: login, builder: (_, __) => const LoginPage()),
       GoRoute(path: register, builder: (_, __) => const RegisterPage()),
       GoRoute(path: dashboard, builder: (_, __) => const DashboardPage()),
-      GoRoute(path: analytics, builder: (_, __) => const AnalyticsDashboardPage()),
+      GoRoute(
+        path: analytics,
+        builder: (_, __) => const AnalyticsDashboardPage(),
+      ),
     ],
   );
 }

@@ -5,7 +5,7 @@ import 'package:andicrochett/features/patterns/data/models/pattern_model.dart';
 /// Repositorio de Patrones usando SQLite de forma directa
 class PatternRepository {
   PatternRepository({DatabaseHelper? dbHelper})
-      : _db = dbHelper ?? DatabaseHelper.instance;
+    : _db = dbHelper ?? DatabaseHelper.instance;
 
   final DatabaseHelper _db;
 
@@ -70,7 +70,8 @@ class PatternRepository {
 
   Future<void> delete(int id) => _db.deletePattern(id);
 
-  Future<void> deleteByDesign(int designId) => _db.deletePatternsByDesign(designId);
+  Future<void> deleteByDesign(int designId) =>
+      _db.deletePatternsByDesign(designId);
 
   Future<int> countByDesign(int designId) async {
     final patterns = await _db.getPatternsByDesign(designId);

@@ -86,8 +86,10 @@ class _CurrencyConversionCardState extends State<CurrencyConversionCard> {
                   children: [
                     const Icon(Icons.currency_exchange, size: 18),
                     const SizedBox(width: 8),
-                    Text('Equivalente en otras monedas',
-                        style: theme.textTheme.titleSmall),
+                    Text(
+                      'Equivalente en otras monedas',
+                      style: theme.textTheme.titleSmall,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -121,11 +123,16 @@ class _Row extends StatelessWidget {
     final theme = Theme.of(context);
     return Row(
       children: [
-        SizedBox(width: 40, child: Text(label, style: theme.textTheme.bodyMedium)),
+        SizedBox(
+          width: 40,
+          child: Text(label, style: theme.textTheme.bodyMedium),
+        ),
         const SizedBox(width: 8),
         Text(
           value,
-          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ],
     );

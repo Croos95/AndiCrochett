@@ -21,17 +21,16 @@ import 'package:integration_test/integration_test.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('AppButton.primary se renderiza y dispara onPressed', (tester) async {
+  testWidgets('AppButton.primary se renderiza y dispara onPressed', (
+    tester,
+  ) async {
     var taps = 0;
 
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
           body: Center(
-            child: AppButton.primary(
-              label: 'Guardar',
-              onPressed: () => taps++,
-            ),
+            child: AppButton.primary(label: 'Guardar', onPressed: () => taps++),
           ),
         ),
       ),
@@ -45,7 +44,9 @@ void main() {
     expect(taps, 1);
   });
 
-  testWidgets('AppButton con isLoading muestra spinner y bloquea taps', (tester) async {
+  testWidgets('AppButton con isLoading muestra spinner y bloquea taps', (
+    tester,
+  ) async {
     var taps = 0;
 
     await tester.pumpWidget(

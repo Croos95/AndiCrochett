@@ -162,9 +162,15 @@ class _HomeViewState extends State<_HomeView> {
               StreamBuilder<List<OrderModel>>(
                 stream: _orderRepo.watchByUser(uid),
                 builder: (_, snap) {
-                  final pending = snap.data?.where(
-                        (o) => o.status == OrderStatus.pending || o.status == OrderStatus.inProgress,
-                      ).length ?? 0;
+                  final pending =
+                      snap.data
+                          ?.where(
+                            (o) =>
+                                o.status == OrderStatus.pending ||
+                                o.status == OrderStatus.inProgress,
+                          )
+                          .length ??
+                      0;
                   return _DashboardCard(
                     title: 'Pedidos',
                     value: '$pending',

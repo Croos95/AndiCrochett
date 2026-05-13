@@ -9,7 +9,11 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('UserSettings', () {
     test('toMap/fromMap es round-trip', () {
-      const s = UserSettings(theme: 'dark', language: 'en', notifications: false);
+      const s = UserSettings(
+        theme: 'dark',
+        language: 'en',
+        notifications: false,
+      );
       final r = UserSettings.fromMap(s.toMap());
       expect(r.theme, 'dark');
       expect(r.language, 'en');
@@ -17,7 +21,11 @@ void main() {
     });
 
     test('fromMap acepta notifications=1 (SQLite int → bool)', () {
-      final r = UserSettings.fromMap({'theme': 'light', 'language': 'es', 'notifications': 1});
+      final r = UserSettings.fromMap({
+        'theme': 'light',
+        'language': 'es',
+        'notifications': 1,
+      });
       expect(r.notifications, true);
     });
   });
@@ -56,9 +64,24 @@ void main() {
     });
 
     test('igualdad basada en uid + email', () {
-      final a = UserModel(uid: 'x', email: 'e', createdAt: DateTime.now(), updatedAt: DateTime.now());
-      final b = UserModel(uid: 'x', email: 'e', createdAt: DateTime.now(), updatedAt: DateTime.now());
-      final c = UserModel(uid: 'y', email: 'e', createdAt: DateTime.now(), updatedAt: DateTime.now());
+      final a = UserModel(
+        uid: 'x',
+        email: 'e',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      final b = UserModel(
+        uid: 'x',
+        email: 'e',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      final c = UserModel(
+        uid: 'y',
+        email: 'e',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
       expect(a, equals(b));
       expect(a, isNot(equals(c)));
     });

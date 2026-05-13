@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:andicrochett/core/constants/colors.dart';
 import 'package:andicrochett/core/constants/sizes.dart';
 import 'package:andicrochett/core/widgets/card_context_menu.dart';
@@ -173,4 +173,3 @@ class DesignCard extends StatelessWidget {
     );
   }
 }
-

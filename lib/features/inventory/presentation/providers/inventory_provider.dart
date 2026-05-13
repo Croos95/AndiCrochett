@@ -7,7 +7,7 @@ enum InventoryStatus { initial, loading, loaded, error }
 /// ChangeNotifier para la gestión del estado del inventario con SQLite.
 class InventoryProvider extends ChangeNotifier {
   InventoryProvider({InventoryRepository? repository})
-      : _repo = repository ?? InventoryRepository() {
+    : _repo = repository ?? InventoryRepository() {
     _init();
   }
 
@@ -33,7 +33,8 @@ class InventoryProvider extends ChangeNotifier {
   // ── Getters de conveniencia ────────────────────────────────────────────
 
   int get totalProducts => _products.length;
-  int get totalStock => _products.fold<int>(0, (sum, p) => sum + p.currentStock);
+  int get totalStock =>
+      _products.fold<int>(0, (sum, p) => sum + p.currentStock);
 
   // ── Inicialización ────────────────────────────────────────────────────────
 
@@ -43,8 +44,7 @@ class InventoryProvider extends ChangeNotifier {
 
   // ── Operaciones ───────────────────────────────────────────────────────────
 
-
-/// Carga todos los productos y organiza los estados en memoria
+  /// Carga todos los productos y organiza los estados en memoria
   Future<void> loadProducts() async {
     if (_loadingInProgress) return;
     _loadingInProgress = true;
@@ -58,13 +58,13 @@ class InventoryProvider extends ChangeNotifier {
 
       // 2. Filtramos la lista principal en memoria usando Dart
       // Esto es mucho más rápido que ir a la base de datos 3 veces
-      _lowStockProducts = allProducts.where((p) => 
-        p.status == ProductStatus.lowStock
-      ).toList();
+      _lowStockProducts = allProducts
+          .where((p) => p.status == ProductStatus.lowStock)
+          .toList();
 
-      _outOfStockProducts = allProducts.where((p) => 
-        p.status == ProductStatus.outOfStock
-      ).toList();
+      _outOfStockProducts = allProducts
+          .where((p) => p.status == ProductStatus.outOfStock)
+          .toList();
 
       _status = InventoryStatus.loaded;
       _error = null;

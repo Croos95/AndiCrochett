@@ -103,16 +103,12 @@ class _AgendaPageState extends State<AgendaPage> {
       stream: _ordersStream,
       builder: (context, snapshot) {
         final allOrders = snapshot.data ?? [];
-        final dayOrders = allOrders
-            .where(
-              (o) {
-                final dueDate = o.dueDate ?? o.createdAt;
-                return dueDate.year == _selectedDay.year &&
-                    dueDate.month == _selectedDay.month &&
-                    dueDate.day == _selectedDay.day;
-              },
-            )
-            .toList();
+        final dayOrders = allOrders.where((o) {
+          final dueDate = o.dueDate ?? o.createdAt;
+          return dueDate.year == _selectedDay.year &&
+              dueDate.month == _selectedDay.month &&
+              dueDate.day == _selectedDay.day;
+        }).toList();
 
         final pendingCount = allOrders
             .where((o) => o.status == OrderStatus.pending)
@@ -263,9 +259,7 @@ class _AgendaPageState extends State<AgendaPage> {
           const SizedBox(width: Sizes.lg),
           // Lista de pedidos del día
           Expanded(
-            child: SingleChildScrollView(
-              child: _buildOrdersList(dayOrders),
-            ),
+            child: SingleChildScrollView(child: _buildOrdersList(dayOrders)),
           ),
         ],
       ),

@@ -235,8 +235,12 @@ class PatternParser {
 
       // Condiciones de salida limpia
       if (cursor.eof) break;
-      if (cursor.current == '(') break; // empieza el sufijo (total) — para llamadas top-level
-      if (cursor.current == ']') break; // cierre de bloque (válido solo si isInsideBlock)
+      if (cursor.current == '(') {
+        break; // empieza el sufijo (total) — para llamadas top-level
+      }
+      if (cursor.current == ']') {
+        break; // cierre de bloque (válido solo si isInsideBlock)
+      }
 
       // Si ya hay un elemento, exigimos coma antes del siguiente.
       if (result.isNotEmpty) {

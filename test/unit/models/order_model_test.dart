@@ -86,9 +86,7 @@ void main() {
           'estado': 'completed',
           'fecha_pedido': DateTime.utc(2026, 5, 1).toIso8601String(),
         },
-        items: const [
-          OrderItem(productName: 'X', quantity: 2, unitPrice: 100),
-        ],
+        items: const [OrderItem(productName: 'X', quantity: 2, unitPrice: 100)],
       );
 
       expect(order.id, 1);

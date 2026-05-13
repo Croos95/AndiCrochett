@@ -59,8 +59,9 @@ class AppSidebar extends StatelessWidget {
                     item.label,
                     style: TextStyle(
                       color: isSelected ? Colors.white : Colors.white70,
-                      fontWeight:
-                          isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                       fontSize: Sizes.fontSizeMd,
                     ),
                   ),

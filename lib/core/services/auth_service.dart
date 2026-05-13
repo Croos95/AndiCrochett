@@ -77,7 +77,7 @@ class AuthService {
     final map = await _db.getUserByUid(uid);
     return map != null ? UserModel.fromMap(map) : null;
   }
-  
+
   Stream<UserModel?> watchProfile(String uid) async* {
     if (uid.isEmpty) {
       yield null;

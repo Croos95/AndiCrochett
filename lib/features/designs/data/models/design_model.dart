@@ -1,4 +1,4 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 
 // =============================================================================
 //  DesignModel — Modelo para un diseño de crochet en SQLite.
@@ -46,8 +46,12 @@ class DesignModel {
       name: map['nombre'] as String? ?? '',
       description: map['descripcion'] as String? ?? '',
       userId: map['usuario_id'] as String? ?? '',
-      createdAt: DateTime.tryParse(map['fecha_creacion'] as String? ?? '') ?? DateTime.now(),
-      updatedAt: DateTime.tryParse(map['fecha_actualizacion'] as String? ?? '') ?? DateTime.now(),
+      createdAt:
+          DateTime.tryParse(map['fecha_creacion'] as String? ?? '') ??
+          DateTime.now(),
+      updatedAt:
+          DateTime.tryParse(map['fecha_actualizacion'] as String? ?? '') ??
+          DateTime.now(),
     );
   }
 

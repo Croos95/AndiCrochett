@@ -10,7 +10,7 @@ import 'package:andicrochett/features/designs/data/models/design_model.dart';
 
 class DesignRepository {
   DesignRepository({DatabaseHelper? dbHelper})
-      : _db = dbHelper ?? DatabaseHelper.instance;
+    : _db = dbHelper ?? DatabaseHelper.instance;
 
   final DatabaseHelper _db;
 

@@ -54,8 +54,10 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     if (_user == null) {
       return const Center(
-        child: Text('No hay sesión activa',
-            style: TextStyle(color: AppColors.texto)),
+        child: Text(
+          'No hay sesión activa',
+          style: TextStyle(color: AppColors.texto),
+        ),
       );
     }
 
@@ -80,8 +82,8 @@ class _ProfilePageState extends State<ProfilePage> {
                   CircleAvatar(
                     radius: 48,
                     backgroundColor: AppColors.bronce.withValues(alpha: 0.2),
-                    backgroundImage: _user!.photoURL != null &&
-                            _user!.photoURL!.isNotEmpty
+                    backgroundImage:
+                        _user!.photoURL != null && _user!.photoURL!.isNotEmpty
                         ? NetworkImage(_user!.photoURL!)
                         : null,
                     child: _user!.photoURL == null || _user!.photoURL!.isEmpty
@@ -164,8 +166,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   if (profile != null)
                     Card(
                       shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(Sizes.radiusLg),
+                        borderRadius: BorderRadius.circular(Sizes.radiusLg),
                         side: const BorderSide(color: AppColors.border),
                       ),
                       child: Padding(
@@ -248,17 +249,20 @@ class _PreferenceRow extends StatelessWidget {
           Icon(icon, size: 20, color: AppColors.texto),
           const SizedBox(width: Sizes.sm),
           Expanded(
-            child: Text(label,
-                style: const TextStyle(color: AppColors.textoFuerte)),
+            child: Text(
+              label,
+              style: const TextStyle(color: AppColors.textoFuerte),
+            ),
           ),
-          Text(value,
-              style: TextStyle(
-                color: AppColors.texto,
-                fontSize: Sizes.fontSizeSm,
-              )),
+          Text(
+            value,
+            style: TextStyle(
+              color: AppColors.texto,
+              fontSize: Sizes.fontSizeSm,
+            ),
+          ),
         ],
       ),
     );
   }
 }
-

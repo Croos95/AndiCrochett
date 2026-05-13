@@ -28,8 +28,8 @@ class SecureApiClient {
     required this.baseUrl,
     http.Client? client,
     FirebaseAuth? auth,
-  })  : _client = client ?? http.Client(),
-        _auth = auth ?? FirebaseAuth.instance;
+  }) : _client = client ?? http.Client(),
+       _auth = auth ?? FirebaseAuth.instance;
 
   /// Base de la API, p.ej. `https://us-central1-andicrochett-bcb21.cloudfunctions.net/api`
   /// o `http://localhost:5001/andicrochett-bcb21/us-central1/api` en emulador.
@@ -41,7 +41,9 @@ class SecureApiClient {
   Future<String> _idToken() async {
     final user = _auth.currentUser;
     if (user == null) {
-      throw StateError('No hay usuario autenticado para hacer la llamada segura');
+      throw StateError(
+        'No hay usuario autenticado para hacer la llamada segura',
+      );
     }
     final token = await user.getIdToken();
     if (token == null || token.isEmpty) {
@@ -55,10 +57,10 @@ class SecureApiClient {
   Future<Map<String, dynamic>> getSecure(String path) async {
     final token = await _idToken();
     final uri = Uri.parse('$baseUrl/secure$path');
-    final res = await _client.get(uri, headers: {
-      'Authorization': 'Bearer $token',
-      'Accept': 'application/json',
-    });
+    final res = await _client.get(
+      uri,
+      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+    );
 
     if (res.statusCode >= 200 && res.statusCode < 300) {
       return jsonDecode(res.body) as Map<String, dynamic>;

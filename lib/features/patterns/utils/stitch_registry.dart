@@ -157,7 +157,6 @@ class StitchRegistry {
     // ── Punto bajo (referencia: altura 1.0) ────────────────────────────────
     'pb': StitchDefinition(1, 1, symbol: StitchSymbol.cross),
     'sc': StitchDefinition(1, 1, symbol: StitchSymbol.cross), // alias EN
-
     // ── Medio punto alto ───────────────────────────────────────────────────
     'pma': StitchDefinition(
       1,
@@ -225,7 +224,6 @@ class StitchRegistry {
     // de la geometría de pb.
     'aum': StitchDefinition(1, 2, symbol: StitchSymbol.vMerge),
     'inc': StitchDefinition(1, 2, symbol: StitchSymbol.vMerge), // alias EN
-
     // ── Aumento triple (1 → 3) ─────────────────────────────────────────────
     'aumtri': StitchDefinition(1, 3, symbol: StitchSymbol.vMerge),
 
@@ -235,7 +233,6 @@ class StitchRegistry {
     'dis': StitchDefinition(2, 1, symbol: StitchSymbol.caret),
     'dism': StitchDefinition(2, 1, symbol: StitchSymbol.caret), // alias ES alt
     'dec': StitchDefinition(2, 1, symbol: StitchSymbol.caret), // alias EN
-
     // ── Punto deslizado / raso ─────────────────────────────────────────────
     // Apenas levanta tela. En 3D el simulador casi lo trata como una unión
     // (restHeight muy bajo).

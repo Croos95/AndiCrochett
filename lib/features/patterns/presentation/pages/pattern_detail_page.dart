@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:andicrochett/core/constants/colors.dart';
 import 'package:andicrochett/core/constants/sizes.dart';
 import 'package:andicrochett/features/patterns/data/models/pattern_model.dart';
@@ -26,7 +26,7 @@ class PatternDetailPage extends StatefulWidget {
 class _PatternDetailPageState extends State<PatternDetailPage> {
   // El repositorio se guarda como campo para no reinstanciarlo en cada
   // reconstrucción del widget.
-final PatternRepository _repo = PatternRepository();
+  final PatternRepository _repo = PatternRepository();
   @override
   Widget build(BuildContext context) {
     return Scaffold(

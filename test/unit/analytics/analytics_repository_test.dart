@@ -135,10 +135,18 @@ void main() {
     test('top productos respeta unidades vendidas', () async {
       // items_pedido.producto_id es NOT NULL — sembramos productos primero.
       final gorroId = await DatabaseHelper.instance.addProduct(
-        const ProductModel(name: 'Gorro', price: 100, currentStock: 100).toMap(),
+        const ProductModel(
+          name: 'Gorro',
+          price: 100,
+          currentStock: 100,
+        ).toMap(),
       );
       final bufandaId = await DatabaseHelper.instance.addProduct(
-        const ProductModel(name: 'Bufanda', price: 200, currentStock: 100).toMap(),
+        const ProductModel(
+          name: 'Bufanda',
+          price: 200,
+          currentStock: 100,
+        ).toMap(),
       );
 
       final now = DateTime.now();
@@ -149,8 +157,18 @@ void main() {
           status: OrderStatus.completed,
           createdAt: now,
           items: [
-            OrderItem(productId: gorroId, productName: 'Gorro', quantity: 10, unitPrice: 100),
-            OrderItem(productId: bufandaId, productName: 'Bufanda', quantity: 3, unitPrice: 200),
+            OrderItem(
+              productId: gorroId,
+              productName: 'Gorro',
+              quantity: 10,
+              unitPrice: 100,
+            ),
+            OrderItem(
+              productId: bufandaId,
+              productName: 'Bufanda',
+              quantity: 3,
+              unitPrice: 200,
+            ),
           ],
         ),
       );

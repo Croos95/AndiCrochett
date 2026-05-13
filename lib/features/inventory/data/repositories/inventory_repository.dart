@@ -4,7 +4,7 @@ import 'package:andicrochett/features/inventory/data/models/product_model.dart';
 
 class InventoryRepository {
   InventoryRepository({DatabaseHelper? dbHelper})
-      : _db = dbHelper ?? DatabaseHelper.instance;
+    : _db = dbHelper ?? DatabaseHelper.instance;
 
   final DatabaseHelper _db;
 
@@ -50,7 +50,8 @@ class InventoryRepository {
       String newState = 'available';
       if (newQuantity <= 0) {
         newState = 'out_of_stock';
-      } else if (newQuantity <= 5) { // Puedes parametrizar este 5 si quieres
+      } else if (newQuantity <= 5) {
+        // Puedes parametrizar este 5 si quieres
         newState = 'low_stock';
       }
 
@@ -70,11 +71,11 @@ class InventoryRepository {
     try {
       final currentQuantity = await _db.getProductQuantity(productId);
       final newQuantity = (currentQuantity ?? 0) + delta;
-      
+
       if (newQuantity < 0) {
         throw Exception('El stock no puede ser negativo');
       }
-      
+
       // Reutilizamos la lógica centralizada de actualización
       await updateProductStock(productId, newQuantity);
     } catch (e) {
@@ -88,7 +89,10 @@ class InventoryRepository {
   Future<int> createProduct(ProductModel product) async {
     try {
       final id = await _db.addProduct(product.toMap());
-      AnalyticsService.instance.logProductCreated(productId: id, name: product.name);
+      AnalyticsService.instance.logProductCreated(
+        productId: id,
+        name: product.name,
+      );
       return id;
     } catch (e) {
       throw Exception('Error al crear producto: $e');

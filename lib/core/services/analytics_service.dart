@@ -138,18 +138,25 @@ class AnalyticsService {
   Future<void> logScreen(String name) =>
       log(AnalyticsEvent.screenViewed, params: {'screen_name': name});
 
-  Future<void> logProductCreated({required int productId, required String name}) =>
-      log(AnalyticsEvent.productCreated, params: {'product_id': productId, 'name': name});
+  Future<void> logProductCreated({
+    required int productId,
+    required String name,
+  }) => log(
+    AnalyticsEvent.productCreated,
+    params: {'product_id': productId, 'name': name},
+  );
 
-  Future<void> logOrderCreated({required int orderId, required double total, required int itemCount}) =>
-      log(
-        AnalyticsEvent.orderCreated,
-        params: {'order_id': orderId, 'total': total, 'item_count': itemCount},
-      );
+  Future<void> logOrderCreated({
+    required int orderId,
+    required double total,
+    required int itemCount,
+  }) => log(
+    AnalyticsEvent.orderCreated,
+    params: {'order_id': orderId, 'total': total, 'item_count': itemCount},
+  );
 
-  Future<void> logLogin({required String method, required bool success}) =>
-      log(
-        success ? AnalyticsEvent.loginSuccess : AnalyticsEvent.loginFailed,
-        params: {'method': method},
-      );
+  Future<void> logLogin({required String method, required bool success}) => log(
+    success ? AnalyticsEvent.loginSuccess : AnalyticsEvent.loginFailed,
+    params: {'method': method},
+  );
 }

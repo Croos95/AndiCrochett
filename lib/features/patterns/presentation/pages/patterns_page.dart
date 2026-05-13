@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:andicrochett/core/constants/colors.dart';
 import 'package:andicrochett/core/constants/sizes.dart';
@@ -54,7 +54,8 @@ class _PatternsPageState extends State<PatternsPage> {
       ),
     );
   }
- //abre la vista de detalle del patron seleccionado
+
+  //abre la vista de detalle del patron seleccionado
   void _openDetail(PatternModel pattern) {
     if (pattern.id == null) return;
     //se usa navigator.push para abrir una nueva pagina
@@ -151,7 +152,8 @@ class _PatternsPageState extends State<PatternsPage> {
                       return const EmptyStateView(
                         icon: Icons.grid_off_outlined,
                         title: 'Aún no hay patrones',
-                        subtitle: 'Crea tu primer patrón con el botón "Nuevo patrón".',
+                        subtitle:
+                            'Crea tu primer patrón con el botón "Nuevo patrón".',
                       );
                     }
                     return _PatternGrid(

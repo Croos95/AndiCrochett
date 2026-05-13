@@ -4,7 +4,7 @@ import 'package:andicrochett/features/agenda/data/models/order_model.dart';
 /// Repositorio de Pedidos: Actúa como mediador entre la UI y la Base de Datos.
 class OrderRepository {
   OrderRepository({DatabaseHelper? dbHelper})
-      : _db = dbHelper ?? DatabaseHelper.instance;
+    : _db = dbHelper ?? DatabaseHelper.instance;
 
   final DatabaseHelper _db;
 

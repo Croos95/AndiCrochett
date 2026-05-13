@@ -56,9 +56,7 @@ class AppLayout extends StatelessWidget {
         padding: const EdgeInsets.all(Sizes.md),
         decoration: const BoxDecoration(
           color: AppColors.background,
-          border: Border(
-            bottom: BorderSide(color: AppColors.lino, width: 1),
-          ),
+          border: Border(bottom: BorderSide(color: AppColors.lino, width: 1)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

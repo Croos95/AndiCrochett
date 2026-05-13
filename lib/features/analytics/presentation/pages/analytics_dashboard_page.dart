@@ -13,7 +13,7 @@ import 'package:andicrochett/features/analytics/presentation/widgets/status_brea
 
 class AnalyticsDashboardPage extends StatefulWidget {
   const AnalyticsDashboardPage({super.key, AnalyticsRepository? repository})
-      : _repository = repository;
+    : _repository = repository;
 
   final AnalyticsRepository? _repository;
 
@@ -22,7 +22,8 @@ class AnalyticsDashboardPage extends StatefulWidget {
 }
 
 class _AnalyticsDashboardPageState extends State<AnalyticsDashboardPage> {
-  late final AnalyticsRepository _repo = widget._repository ?? AnalyticsRepository();
+  late final AnalyticsRepository _repo =
+      widget._repository ?? AnalyticsRepository();
   late Future<DashboardMetrics> _future;
 
   @override
@@ -87,8 +88,8 @@ class _DashboardBody extends StatelessWidget {
         final cols = constraints.maxWidth >= 1100
             ? 4
             : constraints.maxWidth >= 720
-                ? 3
-                : 2;
+            ? 3
+            : 2;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -146,7 +147,9 @@ class _DashboardBody extends StatelessWidget {
               _SectionTitle('Pedidos por estado'),
               Card(
                 elevation: 1,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: StatusBreakdownBar(breakdown: metrics.ordersByStatus),
@@ -167,14 +170,18 @@ class _DashboardBody extends StatelessWidget {
               else
                 Card(
                   elevation: 1,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   child: Column(
                     children: [
                       for (final p in metrics.topProducts)
                         ListTile(
                           leading: const Icon(Icons.local_offer_outlined),
                           title: Text(p.name),
-                          subtitle: Text('${p.unitsSold} unidades · \$${p.revenue.toStringAsFixed(2)}'),
+                          subtitle: Text(
+                            '${p.unitsSold} unidades · \$${p.revenue.toStringAsFixed(2)}',
+                          ),
                         ),
                     ],
                   ),
@@ -198,9 +205,9 @@ class _SectionTitle extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: Text(
         title,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+        style: Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
       ),
     );
   }

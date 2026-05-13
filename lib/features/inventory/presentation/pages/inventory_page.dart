@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:andicrochett/core/constants/colors.dart';
 import 'package:andicrochett/core/constants/sizes.dart';
@@ -50,7 +50,9 @@ class _InventoryPageState extends State<InventoryPage> {
               bool success;
               final messenger = ScaffoldMessenger.of(context);
               if (existing != null) {
-                success = await provider.updateProduct(product.copyWith(id: existing.id));
+                success = await provider.updateProduct(
+                  product.copyWith(id: existing.id),
+                );
               } else {
                 success = await provider.addProduct(product);
               }
@@ -59,7 +61,9 @@ class _InventoryPageState extends State<InventoryPage> {
                 messenger.showSnackBar(
                   SnackBar(
                     content: Text(
-                      existing != null ? 'Producto actualizado' : 'Producto agregado',
+                      existing != null
+                          ? 'Producto actualizado'
+                          : 'Producto agregado',
                     ),
                     backgroundColor: AppColors.verdeOliva,
                   ),
@@ -128,9 +132,7 @@ class _InventoryPageState extends State<InventoryPage> {
               child: Column(
                 children: [
                   _buildHeader(isMobile, inventoryProvider),
-                  Expanded(
-                    child: _buildContent(isMobile, inventoryProvider),
-                  ),
+                  Expanded(child: _buildContent(isMobile, inventoryProvider)),
                 ],
               ),
             );
@@ -196,8 +198,11 @@ class _InventoryPageState extends State<InventoryPage> {
     }).toList();
 
     final lowCount = allProducts
-        .where((p) =>
-            p.status == ProductStatus.lowStock || p.status == ProductStatus.outOfStock)
+        .where(
+          (p) =>
+              p.status == ProductStatus.lowStock ||
+              p.status == ProductStatus.outOfStock,
+        )
         .length;
 
     return Column(
@@ -219,14 +224,14 @@ class _InventoryPageState extends State<InventoryPage> {
                   child: products.isEmpty
                       ? _buildEmptyState()
                       : isMobile
-                          ? SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: SizedBox(
-                                width: 1000,
-                                child: _buildInventoryTable(products),
-                              ),
-                            )
-                          : _buildInventoryTable(products),
+                      ? SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: SizedBox(
+                            width: 1000,
+                            child: _buildInventoryTable(products),
+                          ),
+                        )
+                      : _buildInventoryTable(products),
                 ),
               ],
             ),
@@ -799,9 +804,14 @@ class _InventoryPageState extends State<InventoryPage> {
                   DataCell(Text(product.currentStock.toString())),
                   DataCell(
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: _statusColor(product.status).withValues(alpha: 0.2),
+                        color: _statusColor(
+                          product.status,
+                        ).withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -824,7 +834,11 @@ class _InventoryPageState extends State<InventoryPage> {
                           tooltip: 'Editar',
                         ),
                         IconButton(
-                          icon: const Icon(Icons.delete, size: 16, color: AppColors.error),
+                          icon: const Icon(
+                            Icons.delete,
+                            size: 16,
+                            color: AppColors.error,
+                          ),
                           onPressed: () => _confirmDelete(product),
                           tooltip: 'Eliminar',
                         ),

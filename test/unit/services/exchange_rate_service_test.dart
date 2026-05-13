@@ -40,7 +40,10 @@ void main() {
         date: DateTime.now(),
         rates: const {'USD': 0.05},
       );
-      expect(() => r.convert(100, 'JPY'), throwsA(isA<ExchangeRateException>()));
+      expect(
+        () => r.convert(100, 'JPY'),
+        throwsA(isA<ExchangeRateException>()),
+      );
     });
 
     test('fromJson rechaza JSON sin "rates" como objeto', () {
@@ -83,7 +86,11 @@ void main() {
       await expectLater(
         service.latest(),
         throwsA(
-          isA<ExchangeRateException>().having((e) => e.statusCode, 'statusCode', 503),
+          isA<ExchangeRateException>().having(
+            (e) => e.statusCode,
+            'statusCode',
+            503,
+          ),
         ),
       );
     });

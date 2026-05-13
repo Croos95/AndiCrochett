@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:andicrochett/core/constants/colors.dart';
 import 'package:andicrochett/core/constants/sizes.dart';
@@ -491,7 +491,7 @@ class _PatternEditorPageState extends State<PatternEditorPage> {
     if (_rows.isEmpty) return const [];
     final rawText = _buildRawText();
     if (rawText == _cachedRawText) return _cachedErrors;
-    
+
     // Cambiamos PatternDocument por PatternModel y id: '' por id: null
     final tmp = PatternModel(
       id: null, // Cambiado a null
@@ -507,9 +507,9 @@ class _PatternEditorPageState extends State<PatternEditorPage> {
       hookSize: _hookCtrl.text.trim(),
       status: _status,
     );
-    
+
     _cachedRawText = rawText;
-    _cachedErrors = tmp.validate(); 
+    _cachedErrors = tmp.validate();
     return _cachedErrors;
   }
 
@@ -582,7 +582,7 @@ class _PatternEditorPageState extends State<PatternEditorPage> {
     try {
       final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
       final now = DateTime.now();
-      
+
       // Cambiamos PatternDocument por PatternModel
       final doc = PatternModel(
         id: widget.existing?.id, // Quitamos el ?? '' porque ahora es un int?
@@ -598,13 +598,13 @@ class _PatternEditorPageState extends State<PatternEditorPage> {
         hookSize: _hookCtrl.text.trim(),
         status: _status,
       );
-      
+
       if (_isEditing) {
         await _repo.update(doc);
       } else {
         await _repo.create(doc);
       }
-      
+
       if (mounted) {
         _snack(_isEditing ? 'Patrón actualizado' : 'Patrón creado');
         Navigator.pop(context);
@@ -1066,7 +1066,9 @@ class _PatternEditorPageState extends State<PatternEditorPage> {
     child: Column(
       children: List.generate(_rows.length, (i) {
         final row = _rows[i];
-        final rowErrors = liveErrors.where((e) => e.rowIndex == row.nr).toList();
+        final rowErrors = liveErrors
+            .where((e) => e.rowIndex == row.nr)
+            .toList();
         final hasError = rowErrors.isNotEmpty;
         return Container(
           margin: const EdgeInsets.only(bottom: Sizes.sm),

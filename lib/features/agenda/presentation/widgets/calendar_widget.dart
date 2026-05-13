@@ -61,9 +61,7 @@ class _CalendarWidgetState extends State<CalendarWidget> {
 
   bool _isToday(DateTime day) {
     final now = DateTime.now();
-    return day.year == now.year &&
-        day.month == now.month &&
-        day.day == now.day;
+    return day.year == now.year && day.month == now.month && day.day == now.day;
   }
 
   @override
@@ -93,8 +91,18 @@ class _CalendarWidgetState extends State<CalendarWidget> {
 
   Widget _buildMonthHeader() {
     const months = [
-      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
     ];
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -129,18 +137,20 @@ class _CalendarWidgetState extends State<CalendarWidget> {
     const days = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
     return Row(
       children: days
-          .map((d) => Expanded(
-                child: Center(
-                  child: Text(
-                    d,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.texto,
-                    ),
+          .map(
+            (d) => Expanded(
+              child: Center(
+                child: Text(
+                  d,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.texto,
                   ),
                 ),
-              ))
+              ),
+            ),
+          )
           .toList(),
     );
   }
@@ -168,7 +178,10 @@ class _CalendarWidgetState extends State<CalendarWidget> {
             }
 
             final date = DateTime(
-                _focusedMonth.year, _focusedMonth.month, dayNum);
+              _focusedMonth.year,
+              _focusedMonth.month,
+              dayNum,
+            );
             final selected = _isSelected(date);
             final today = _isToday(date);
             final hasOrders = _hasOrders(date);
@@ -183,8 +196,8 @@ class _CalendarWidgetState extends State<CalendarWidget> {
                     color: selected
                         ? AppColors.verdeOliva
                         : today
-                            ? AppColors.lino
-                            : null,
+                        ? AppColors.lino
+                        : null,
                     borderRadius: BorderRadius.circular(Sizes.radiusMd),
                   ),
                   child: Stack(

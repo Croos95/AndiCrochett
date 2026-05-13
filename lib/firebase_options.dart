@@ -77,5 +77,4 @@ class DefaultFirebaseOptions {
     storageBucket: 'andicrochett-bcb21.firebasestorage.app',
     iosBundleId: 'com.example.andicrochett',
   );
-
 }

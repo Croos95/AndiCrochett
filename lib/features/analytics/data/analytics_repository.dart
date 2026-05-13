@@ -14,7 +14,7 @@ import 'package:sqflite/sqflite.dart';
 
 class AnalyticsRepository {
   AnalyticsRepository({DatabaseHelper? dbHelper})
-      : _db = dbHelper ?? DatabaseHelper.instance;
+    : _db = dbHelper ?? DatabaseHelper.instance;
 
   final DatabaseHelper _db;
 
@@ -49,7 +49,9 @@ class AnalyticsRepository {
   // ── Queries ─────────────────────────────────────────────────────────────────
 
   Future<int> _countProducts(Database db) async {
-    final r = await db.rawQuery('SELECT COUNT(*) as c FROM ${DatabaseHelper.tableProducts}');
+    final r = await db.rawQuery(
+      'SELECT COUNT(*) as c FROM ${DatabaseHelper.tableProducts}',
+    );
     return Sqflite.firstIntValue(r) ?? 0;
   }
 
@@ -62,18 +64,24 @@ class AnalyticsRepository {
   }
 
   Future<int> _countOrders(Database db) async {
-    final r = await db.rawQuery('SELECT COUNT(*) as c FROM ${DatabaseHelper.tableOrders}');
+    final r = await db.rawQuery(
+      'SELECT COUNT(*) as c FROM ${DatabaseHelper.tableOrders}',
+    );
     return Sqflite.firstIntValue(r) ?? 0;
   }
 
   Future<int> _countClients(Database db) async {
-    final r = await db.rawQuery('SELECT COUNT(*) as c FROM ${DatabaseHelper.tableClients}');
+    final r = await db.rawQuery(
+      'SELECT COUNT(*) as c FROM ${DatabaseHelper.tableClients}',
+    );
     return Sqflite.firstIntValue(r) ?? 0;
   }
 
   Future<double> _revenueLast30Days(Database db) async {
     // Suma del total de pedidos completados en los últimos 30 días.
-    final cutoff = DateTime.now().subtract(const Duration(days: 30)).toIso8601String();
+    final cutoff = DateTime.now()
+        .subtract(const Duration(days: 30))
+        .toIso8601String();
     final r = await db.rawQuery(
       '''
       SELECT COALESCE(SUM(${DatabaseHelper.orderTotal}), 0) as total

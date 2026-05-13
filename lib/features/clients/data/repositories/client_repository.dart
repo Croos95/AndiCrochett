@@ -4,7 +4,7 @@ import 'package:andicrochett/features/clients/data/models/client_model.dart';
 /// Repositorio de Clientes usando SQLite
 class ClientRepository {
   ClientRepository({DatabaseHelper? dbHelper})
-      : _db = dbHelper ?? DatabaseHelper.instance;
+    : _db = dbHelper ?? DatabaseHelper.instance;
 
   final DatabaseHelper _db;
 
@@ -36,9 +36,11 @@ class ClientRepository {
       final all = await getAllClients();
       final lowerQuery = query.toLowerCase();
       return all
-          .where((c) =>
-              c.name.toLowerCase().contains(lowerQuery) ||
-              c.email.toLowerCase().contains(lowerQuery))
+          .where(
+            (c) =>
+                c.name.toLowerCase().contains(lowerQuery) ||
+                c.email.toLowerCase().contains(lowerQuery),
+          )
           .toList();
     } catch (e) {
       throw Exception('Error al buscar clientes: $e');

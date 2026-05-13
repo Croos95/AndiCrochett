@@ -49,7 +49,9 @@ class ExchangeRate {
   factory ExchangeRate.fromJson(Map<String, dynamic> json) {
     final ratesJson = json['rates'];
     if (ratesJson is! Map) {
-      throw ExchangeRateException('Respuesta JSON inválida: "rates" no es objeto');
+      throw ExchangeRateException(
+        'Respuesta JSON inválida: "rates" no es objeto',
+      );
     }
     final parsed = <String, double>{};
     ratesJson.forEach((k, v) {
@@ -64,8 +66,10 @@ class ExchangeRate {
 }
 
 class ExchangeRateService {
-  ExchangeRateService({http.Client? client, this.baseUrl = 'https://api.frankfurter.app'})
-      : _client = client ?? http.Client();
+  ExchangeRateService({
+    http.Client? client,
+    this.baseUrl = 'https://api.frankfurter.app',
+  }) : _client = client ?? http.Client();
 
   final http.Client _client;
   final String baseUrl;
@@ -78,15 +82,13 @@ class ExchangeRateService {
     String from = 'MXN',
     List<String> to = const ['USD', 'EUR'],
   }) async {
-    final query = {
-      'from': from,
-      if (to.isNotEmpty) 'to': to.join(','),
-    };
+    final query = {'from': from, if (to.isNotEmpty) 'to': to.join(',')};
     final uri = Uri.parse('$baseUrl/latest').replace(queryParameters: query);
 
-    final res = await _client.get(uri, headers: const {
-      'Accept': 'application/json',
-    });
+    final res = await _client.get(
+      uri,
+      headers: const {'Accept': 'application/json'},
+    );
 
     if (res.statusCode != 200) {
       throw ExchangeRateException(

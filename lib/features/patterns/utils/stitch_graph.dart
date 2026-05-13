@@ -258,8 +258,7 @@ class StitchGraph {
   StitchNode? nextSiblingOf(StitchNode node) {
     // Buscamos un nodo de la misma vuelta cuyo prevSiblingId sea el nuestro.
     for (final candidate in nodes) {
-      if (candidate.round == node.round &&
-          candidate.prevSiblingId == node.id) {
+      if (candidate.round == node.round && candidate.prevSiblingId == node.id) {
         return candidate;
       }
     }

@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 
-enum OrderStatus { pending, inProgress, completed, cancelled; }
+enum OrderStatus { pending, inProgress, completed, cancelled }
 
 extension OrderStatusX on OrderStatus {
   String get value => name;
-  
+
   String get label {
     switch (this) {
       case OrderStatus.pending:
@@ -17,9 +17,11 @@ extension OrderStatusX on OrderStatus {
         return 'Cancelado';
     }
   }
-  
-  static OrderStatus fromString(String v) => 
-      OrderStatus.values.firstWhere((e) => e.name == v, orElse: () => OrderStatus.pending);
+
+  static OrderStatus fromString(String v) => OrderStatus.values.firstWhere(
+    (e) => e.name == v,
+    orElse: () => OrderStatus.pending,
+  );
 }
 
 @immutable
@@ -125,7 +127,10 @@ class OrderModel {
     'notas': notes,
   };
 
-  factory OrderModel.fromMap(Map<String, dynamic> map, {List<OrderItem> items = const []}) => OrderModel(
+  factory OrderModel.fromMap(
+    Map<String, dynamic> map, {
+    List<OrderItem> items = const [],
+  }) => OrderModel(
     id: map['id'],
     userId: map['usuario_id'] ?? '',
     clientId: map['cliente_id'] ?? 0,
@@ -134,7 +139,9 @@ class OrderModel {
     totalPrice: (map['total'] as num?)?.toDouble() ?? 0.0,
     status: OrderStatusX.fromString(map['estado'] ?? 'pending'),
     createdAt: DateTime.tryParse(map['fecha_pedido'] ?? '') ?? DateTime.now(),
-    dueDate: map['fecha_entrega'] != null ? DateTime.tryParse(map['fecha_entrega']) : null,
+    dueDate: map['fecha_entrega'] != null
+        ? DateTime.tryParse(map['fecha_entrega'])
+        : null,
     notes: map['notas'] ?? '',
     items: items,
   );

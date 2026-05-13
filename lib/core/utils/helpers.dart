@@ -13,8 +13,18 @@ class AppHelpers {
   /// Devuelve el mes abreviado + año, ej: 'ene 2025'.
   static String formatShortDate(DateTime date) {
     const months = [
-      'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-      'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+      'ene',
+      'feb',
+      'mar',
+      'abr',
+      'may',
+      'jun',
+      'jul',
+      'ago',
+      'sep',
+      'oct',
+      'nov',
+      'dic',
     ];
     return '${months[date.month - 1]} ${date.year}';
   }

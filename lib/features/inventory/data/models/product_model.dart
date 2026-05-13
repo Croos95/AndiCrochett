@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+
 //lib/features/inventory/data/models/product_model.dart
 enum ProductStatus { available, lowStock, outOfStock }
 
@@ -71,22 +72,21 @@ class ProductModel {
     ProductStatus? status,
     DateTime? createdAt,
     DateTime? updatedAt,
-  }) =>
-      ProductModel(
-        id: id ?? this.id,
-        name: name ?? this.name,
-        description: description ?? this.description,
-        price: price ?? this.price,
-        imageUrl: imageUrl ?? this.imageUrl,
-        category: category ?? this.category,
-        color: color ?? this.color,
-        weight: weight ?? this.weight,
-        brand: brand ?? this.brand,
-        currentStock: currentStock ?? this.currentStock,
-        status: status ?? this.status,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-      );
+  }) => ProductModel(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    description: description ?? this.description,
+    price: price ?? this.price,
+    imageUrl: imageUrl ?? this.imageUrl,
+    category: category ?? this.category,
+    color: color ?? this.color,
+    weight: weight ?? this.weight,
+    brand: brand ?? this.brand,
+    currentStock: currentStock ?? this.currentStock,
+    status: status ?? this.status,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
 
   // ── Serialización para SQLite ─────────────────────────────────────────────
 
@@ -102,8 +102,10 @@ class ProductModel {
     'marca': brand,
     'cantidad': currentStock,
     'estado': status.sqliteValue,
-    'fecha_creacion': createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
-    'fecha_actualizacion': updatedAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
+    'fecha_creacion':
+        createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
+    'fecha_actualizacion':
+        updatedAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
   };
 
   /// Convierte desde Map de SQLite a ProductModel
@@ -127,9 +129,6 @@ class ProductModel {
         : null,
   );
 
-  factory ProductModel.empty() => const ProductModel(
-    name: '',
-    price: 0.0,
-    currentStock: 0,
-  );
+  factory ProductModel.empty() =>
+      const ProductModel(name: '', price: 0.0, currentStock: 0);
 }
