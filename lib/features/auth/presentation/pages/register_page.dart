@@ -41,7 +41,8 @@ class _RegisterPageState extends State<RegisterPage> {
       _registeredEmail = null;
     });
 
-    final ok = await context.read<AuthProvider>().register(
+    final authProvider = context.read<AuthProvider>();
+    final ok = await authProvider.register(
       email: _emailController.text,
       password: _passwordController.text,
     );
@@ -58,14 +59,15 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<void> _handleGoogleSignIn() async {
-    final ok = await context.read<AuthProvider>().signInWithGoogle();
+    final authProvider = context.read<AuthProvider>();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final ok = await authProvider.signInWithGoogle();
     if (!mounted) return;
     if (!ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Text(
-            context.read<AuthProvider>().errorMessage ??
-                'No se pudo continuar con Google.',
+            authProvider.errorMessage ?? 'No se pudo continuar con Google.',
           ),
         ),
       );
@@ -110,23 +112,25 @@ class _RegisterPageState extends State<RegisterPage> {
                                   _emailController.text.trim(),
                               onGoToLogin: _goToLogin,
                               onResend: () async {
-                                final success = await context
-                                    .read<AuthProvider>()
+                                final authProvider = context
+                                    .read<AuthProvider>();
+                                final scaffoldMessenger = ScaffoldMessenger.of(
+                                  context,
+                                );
+                                final success = await authProvider
                                     .resendVerificationEmail();
                                 if (!mounted) return;
                                 if (!success) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  scaffoldMessenger.showSnackBar(
                                     SnackBar(
                                       content: Text(
-                                        context
-                                                .read<AuthProvider>()
-                                                .errorMessage ??
+                                        authProvider.errorMessage ??
                                             'No se pudo reenviar el correo.',
                                       ),
                                     ),
                                   );
                                 } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  scaffoldMessenger.showSnackBar(
                                     const SnackBar(
                                       content: Text(
                                         'Correo de verificación reenviado.',
@@ -135,13 +139,18 @@ class _RegisterPageState extends State<RegisterPage> {
                                   );
                                 }
                               },
+
                               onVerified: () async {
-                                final verified = await context
-                                    .read<AuthProvider>()
+                                final authProvider = context
+                                    .read<AuthProvider>();
+                                final scaffoldMessenger = ScaffoldMessenger.of(
+                                  context,
+                                );
+                                final verified = await authProvider
                                     .refreshVerificationStatus();
                                 if (!mounted) return;
                                 if (!verified) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  scaffoldMessenger.showSnackBar(
                                     const SnackBar(
                                       content: Text(
                                         'Aún no vemos la verificación. Revisa tu correo e inténtalo otra vez.',
@@ -405,8 +414,9 @@ class _RegisterCard extends StatelessWidget {
               onToggleObscure: onTogglePassword,
               textInputAction: TextInputAction.next,
               validator: (value) {
-                if (value == null || value.isEmpty)
+                if (value == null || value.isEmpty) {
                   return 'Ingresa tu contraseña';
+                }
                 if (value.length < 6) return 'Mínimo 6 caracteres';
                 return null;
               },

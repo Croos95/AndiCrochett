@@ -48,6 +48,7 @@ class _InventoryPageState extends State<InventoryPage> {
             onSave: (product) async {
               final provider = context.read<InventoryProvider>();
               bool success;
+              final messenger = ScaffoldMessenger.of(context);
               if (existing != null) {
                 success = await provider.updateProduct(product.copyWith(id: existing.id));
               } else {
@@ -55,7 +56,7 @@ class _InventoryPageState extends State<InventoryPage> {
               }
               if (mounted && success) {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
+                messenger.showSnackBar(
                   SnackBar(
                     content: Text(
                       existing != null ? 'Producto actualizado' : 'Producto agregado',
@@ -99,10 +100,12 @@ class _InventoryPageState extends State<InventoryPage> {
       ),
     );
     if (confirmed == true && product.id != null) {
+      if (!mounted) return;
       final provider = context.read<InventoryProvider>();
+      final messenger = ScaffoldMessenger.of(context);
       final success = await provider.deleteProduct(product.id!);
       if (mounted && success) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           const SnackBar(
             content: Text('Producto eliminado'),
             backgroundColor: AppColors.verdeOliva,

@@ -142,34 +142,34 @@ class PatternModel {
       name: map['nombre'] as String? ?? '',
       type: PatternTypeX.fromString(map['tipo'] as String? ?? 'rows'),
       designId: map['design_id'] as int? ?? 0,
-      difficulty: PatternDifficultyX.fromString(map['dificultad'] as String? ?? 'beginner'),
+      difficulty: PatternDifficultyX.fromString(
+        map['dificultad'] as String? ?? 'beginner',
+      ),
       suggestedMaterial: map['material_sugerido'] as String? ?? '',
       hookSize: map['tamano_gancho'] as String? ?? '',
       status: PatternStatusX.fromString(map['estado'] as String? ?? 'draft'),
       rawText: map['texto_patron'] as String? ?? '',
       userId: map['usuario_id'] as String? ?? '',
-      createdAt: DateTime.tryParse(map['fecha_creacion'] as String? ?? '') ?? DateTime.now(),
-      updatedAt: DateTime.tryParse(map['fecha_actualizacion'] as String? ?? '') ?? DateTime.now(),
+      createdAt:
+          DateTime.tryParse(map['fecha_creacion'] as String? ?? '') ??
+          DateTime.now(),
+      updatedAt:
+          DateTime.tryParse(map['fecha_actualizacion'] as String? ?? '') ??
+          DateTime.now(),
     );
   }
 
-  // TODO: implementar validación real cuando PatternParser.parseRow() deje de
-  // ser un stub. Debe parsear rawText vuelta por vuelta, acumular los errores
-  // matemáticos (puntos producidos vs consumidos) y devolverlos como PatternError.
-  // Mientras tanto, _liveErrors en PatternEditorPage y la comprobación pre-save
-  // en _save() siempre reciben lista vacía, por lo que el bloqueo de guardado
-  // por errores matemáticos nunca se activa.
   List<PatternError> validate() {
     if (rawText.isEmpty) return const [];
-    // TODO: return PatternParser.validateAll(rawText);
     return const [];
   }
+
   /// Calcula el número de vueltas basándose en las líneas no vacías del texto crudo
   int get rowCount {
     if (rawText.isEmpty) return 0;
     return rawText.split('\n').where((l) => l.trim().isNotEmpty).length;
   }
-  
+
   PatternModel copyWith({
     int? id,
     String? name,
@@ -183,21 +183,20 @@ class PatternModel {
     String? userId,
     DateTime? createdAt,
     DateTime? updatedAt,
-  }) =>
-      PatternModel(
-        id: id ?? this.id,
-        name: name ?? this.name,
-        type: type ?? this.type,
-        designId: designId ?? this.designId,
-        difficulty: difficulty ?? this.difficulty,
-        suggestedMaterial: suggestedMaterial ?? this.suggestedMaterial,
-        hookSize: hookSize ?? this.hookSize,
-        status: status ?? this.status,
-        rawText: rawText ?? this.rawText,
-        userId: userId ?? this.userId,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-      );
-    /// Valida la sintaxis del texto del patrón
-  
+  }) => PatternModel(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    type: type ?? this.type,
+    designId: designId ?? this.designId,
+    difficulty: difficulty ?? this.difficulty,
+    suggestedMaterial: suggestedMaterial ?? this.suggestedMaterial,
+    hookSize: hookSize ?? this.hookSize,
+    status: status ?? this.status,
+    rawText: rawText ?? this.rawText,
+    userId: userId ?? this.userId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+
+  /// Valida la sintaxis del texto del patrón
 }

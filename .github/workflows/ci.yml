@@ -58,18 +58,24 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: 4. Instalar dependencias de Flutter
+      - name: 4. Activar FlutterFire CLI
+        run: dart pub global activate flutterfire_cli
+
+      - name: 5. Generar configuración de Firebase
+        run: flutterfire configure --project=andicrochett-bcb21 --yes
+
+      - name: 6. Instalar dependencias de Flutter
         run: flutter pub get
 
-      - name: 5. Analizar código fuente
+      - name: 7. Analizar código fuente
         run: flutter analyze
 
-      - name: 6. Ejecutar pruebas y generar cobertura
+      - name: 8. Ejecutar pruebas y generar cobertura
         # -j 1: los tests de integracion comparten el archivo SQLite, asi que
         # se corren en serie para evitar races entre isolates.
         run: flutter test --coverage -j 1
 
-      - name: 7. Subir artefacto de cobertura
+      - name: 9. Subir artefacto de cobertura
         uses: actions/upload-artifact@v4
         with:
           name: reporte-cobertura-lcov
@@ -99,13 +105,19 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: 4. Instalar dependencias de Flutter
+      - name: 4. Activar FlutterFire CLI
+        run: dart pub global activate flutterfire_cli
+
+      - name: 5. Generar configuración de Firebase
+        run: flutterfire configure --project=andicrochett-bcb21 --yes
+
+      - name: 6. Instalar dependencias de Flutter
         run: flutter pub get
 
-      - name: 5. Compilar Android App Bundle (AAB)
+      - name: 7. Compilar Android App Bundle (AAB)
         run: flutter build appbundle
 
-      - name: 6. Subir artefacto de Android (AAB)
+      - name: 8. Subir artefacto de Android (AAB)
         uses: actions/upload-artifact@v4
         with:
           name: app-release-bundle
@@ -129,13 +141,19 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: 3. Instalar dependencias de Flutter
+      - name: 3. Activar FlutterFire CLI
+        run: dart pub global activate flutterfire_cli
+
+      - name: 4. Generar configuración de Firebase
+        run: flutterfire configure --project=andicrochett-bcb21 --yes
+
+      - name: 5. Instalar dependencias de Flutter
         run: flutter pub get
 
-      - name: 4. Compilar aplicación web
+      - name: 6. Compilar aplicación web
         run: flutter build web --no-tree-shake-icons
 
-      - name: 5. Subir artefacto web
+      - name: 7. Subir artefacto web
         uses: actions/upload-artifact@v4
         with:
           name: web-build

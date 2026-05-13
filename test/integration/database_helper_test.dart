@@ -10,7 +10,6 @@ import 'package:andicrochett/database_helper.dart';
 import 'package:andicrochett/features/inventory/data/models/product_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
-import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -75,10 +74,18 @@ void main() {
 
     test('searchProducts filtra por LIKE', () async {
       await DatabaseHelper.instance.addProduct(
-        const ProductModel(name: 'Estambre rojo', price: 1, currentStock: 1).toMap(),
+        const ProductModel(
+          name: 'Estambre rojo',
+          price: 1,
+          currentStock: 1,
+        ).toMap(),
       );
       await DatabaseHelper.instance.addProduct(
-        const ProductModel(name: 'Aguja 3mm', price: 1, currentStock: 1).toMap(),
+        const ProductModel(
+          name: 'Aguja 3mm',
+          price: 1,
+          currentStock: 1,
+        ).toMap(),
       );
 
       final matches = await DatabaseHelper.instance.searchProducts('Estambre');
@@ -104,7 +111,12 @@ void main() {
     });
 
     test('updateClient parcial respeta campos no pasados', () async {
-      final id = await DatabaseHelper.instance.addClient('A', 'x@y.z', '1', 'sin dir');
+      final id = await DatabaseHelper.instance.addClient(
+        'A',
+        'x@y.z',
+        '1',
+        'sin dir',
+      );
       await DatabaseHelper.instance.updateClient(id, telefono: '999');
 
       final all = await DatabaseHelper.instance.getAllClients();

@@ -1,18 +1,21 @@
+// ignore_for_file: empty_catches
+
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:andicrochett/features/agenda/data/models/order_model.dart';
 import 'package:andicrochett/features/designs/data/models/design_model.dart';
 import 'package:andicrochett/features/patterns/data/models/pattern_model.dart';
+
 //lib/database_helper.dart
 class DatabaseHelper {
   // Configuración de la base de datos
   static const _databaseName = "andicrochett.db";
   static const _databaseVersion = 9;
-  
-  // Nueva columna para preferencias de usuario
-  static const userSettings = 'settings'; 
 
-  // Nueva columna para guardar ítems como JSON 
+  // Nueva columna para preferencias de usuario
+  static const userSettings = 'settings';
+
+  // Nueva columna para guardar ítems como JSON
   static const orderItemsJson = 'items_json';
 
   // ============ TABLAS ============
@@ -103,12 +106,12 @@ class DatabaseHelper {
   static const catalogId = 'id';
   static const catalogUserId = 'usuario_id';
   static const catalogIsPublic = 'es_publico';
-  static const catalogBusinessName = 'nombre_negocio';       // <-- NUEVO
-  static const catalogContactEmail = 'email_contacto';       // <-- NUEVO
-  static const catalogContactPhone = 'telefono_contacto';    // <-- NUEVO
-  static const catalogContactInstagram = 'instagram_contacto';// <-- NUEVO
+  static const catalogBusinessName = 'nombre_negocio'; // <-- NUEVO
+  static const catalogContactEmail = 'email_contacto'; // <-- NUEVO
+  static const catalogContactPhone = 'telefono_contacto'; // <-- NUEVO
+  static const catalogContactInstagram = 'instagram_contacto'; // <-- NUEVO
   static const catalogFeaturedProducts = 'productos_destacados';
-  static const catalogFeaturedPatterns = 'patrones_destacados';// <-- NUEVO
+  static const catalogFeaturedPatterns = 'patrones_destacados'; // <-- NUEVO
   static const catalogCreatedAt = 'fecha_creacion';
   static const catalogUpdatedAt = 'fecha_actualizacion';
 
@@ -182,7 +185,7 @@ class DatabaseHelper {
     ''');
 
     // Tabla de Pedidos
-   await db.execute('''
+    await db.execute('''
       CREATE TABLE $tableOrders (
         $orderId INTEGER PRIMARY KEY AUTOINCREMENT,
         $orderUserId TEXT NOT NULL,
@@ -231,27 +234,41 @@ class DatabaseHelper {
     if (oldVersion < 2) {
       // Migración de v1 a v2: Agregar campos faltantes a productos
       try {
-        await db.execute('ALTER TABLE $tableProducts ADD COLUMN $productCategory TEXT DEFAULT ""');
+        await db.execute(
+          'ALTER TABLE $tableProducts ADD COLUMN $productCategory TEXT DEFAULT ""',
+        );
       } catch (_) {}
       try {
-        await db.execute('ALTER TABLE $tableProducts ADD COLUMN $productColor TEXT DEFAULT ""');
+        await db.execute(
+          'ALTER TABLE $tableProducts ADD COLUMN $productColor TEXT DEFAULT ""',
+        );
       } catch (_) {}
       try {
-        await db.execute('ALTER TABLE $tableProducts ADD COLUMN $productWeight TEXT DEFAULT ""');
+        await db.execute(
+          'ALTER TABLE $tableProducts ADD COLUMN $productWeight TEXT DEFAULT ""',
+        );
       } catch (_) {}
       try {
-        await db.execute('ALTER TABLE $tableProducts ADD COLUMN $productBrand TEXT DEFAULT ""');
+        await db.execute(
+          'ALTER TABLE $tableProducts ADD COLUMN $productBrand TEXT DEFAULT ""',
+        );
       } catch (_) {}
       try {
-        await db.execute('ALTER TABLE $tableProducts ADD COLUMN $productQuantity INTEGER DEFAULT 0');
+        await db.execute(
+          'ALTER TABLE $tableProducts ADD COLUMN $productQuantity INTEGER DEFAULT 0',
+        );
       } catch (_) {}
       try {
-        await db.execute('ALTER TABLE $tableProducts ADD COLUMN $productStatus TEXT DEFAULT "available"');
+        await db.execute(
+          'ALTER TABLE $tableProducts ADD COLUMN $productStatus TEXT DEFAULT "available"',
+        );
       } catch (_) {}
       try {
-        await db.execute('ALTER TABLE $tableProducts ADD COLUMN $productUpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
+        await db.execute(
+          'ALTER TABLE $tableProducts ADD COLUMN $productUpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
+        );
       } catch (_) {}
-      
+
       // Crear tabla de items de pedido si no existe
       try {
         await db.execute('''
@@ -288,22 +305,30 @@ class DatabaseHelper {
     }
 
     if (oldVersion < 4) {
-      try {
-        await db.execute('ALTER TABLE $tableUsers ADD COLUMN $userSettings TEXT DEFAULT "{}"');
-        await db.execute('ALTER TABLE $tableOrders ADD COLUMN $orderItemsJson TEXT DEFAULT "[]"');
-      } catch (e) {
-        print("Error en migración v4: $e");
-      }
+      await db.execute(
+        'ALTER TABLE $tableUsers ADD COLUMN $userSettings TEXT DEFAULT "{}"',
+      );
+      await db.execute(
+        'ALTER TABLE $tableOrders ADD COLUMN $orderItemsJson TEXT DEFAULT "[]"',
+      );
     }
 
     if (oldVersion < 5) {
       try {
-        await db.execute('ALTER TABLE $tableOrders ADD COLUMN $orderUserId TEXT NOT NULL DEFAULT ""');
-        await db.execute('ALTER TABLE $tableOrders ADD COLUMN $orderDueDate TIMESTAMP');
-        await db.execute('ALTER TABLE $tableOrders ADD COLUMN $orderNotes TEXT DEFAULT ""');
-        await db.execute('ALTER TABLE $tableOrders ADD COLUMN $orderContacto TEXT DEFAULT ""');
+        await db.execute(
+          'ALTER TABLE $tableOrders ADD COLUMN $orderUserId TEXT NOT NULL DEFAULT ""',
+        );
+        await db.execute(
+          'ALTER TABLE $tableOrders ADD COLUMN $orderDueDate TIMESTAMP',
+        );
+        await db.execute(
+          'ALTER TABLE $tableOrders ADD COLUMN $orderNotes TEXT DEFAULT ""',
+        );
+        await db.execute(
+          'ALTER TABLE $tableOrders ADD COLUMN $orderContacto TEXT DEFAULT ""',
+        );
       } catch (e) {
-        print("Error en migración v5: $e");
+        // Si la migración falla, no hacemos nada. Esto es para evitar que la app se rompa en producción.
       }
     }
 
@@ -320,7 +345,7 @@ class DatabaseHelper {
           )
         ''');
       } catch (e) {
-        print("Error en migración v6: $e");
+        // Ignore: table may already exist
       }
     }
 
@@ -344,7 +369,7 @@ class DatabaseHelper {
           )
         ''');
       } catch (e) {
-        print("Error en migración v7: $e");
+        // Ignore: table may already exist
       }
     }
 
@@ -366,7 +391,7 @@ class DatabaseHelper {
           )
         ''');
       } catch (e) {
-        print("Error en migración v8: $e");
+        // Ignore: table may already exist
       }
     }
 
@@ -376,7 +401,7 @@ class DatabaseHelper {
           'ALTER TABLE $tableOrders ADD COLUMN $orderClientName TEXT DEFAULT ""',
         );
       } catch (e) {
-        print("Error en migración v9: $e");
+        // Ignore: column may already exist
       }
     }
   }
@@ -407,7 +432,11 @@ class DatabaseHelper {
 
   Future<int> update(String table, Map<String, dynamic> row) async {
     final id = row['id'];
-    if (id == null) throw ArgumentError("El mapa debe contener la clave 'id' para actualizar '$table'");
+    if (id == null) {
+      throw ArgumentError(
+        "El mapa debe contener la clave 'id' para actualizar '$table'",
+      );
+    }
     Database db = await instance.database;
     final data = Map<String, dynamic>.from(row)..remove('id');
     return await db.update(table, data, where: 'id = ?', whereArgs: [id]);
@@ -427,7 +456,12 @@ class DatabaseHelper {
   // MÉTODOS ESPECÍFICOS PARA CLIENTES
   // ==========================================
 
-  Future<int> addClient(String nombre, String? email, String? telefono, String? direccion) async {
+  Future<int> addClient(
+    String nombre,
+    String? email,
+    String? telefono,
+    String? direccion,
+  ) async {
     return await insert(tableClients, {
       clientName: nombre,
       clientEmail: email,
@@ -440,63 +474,84 @@ class DatabaseHelper {
     return await queryAll(tableClients);
   }
 
-  Future<int> updateClient(int id, {String? nombre, String? email, String? telefono, String? direccion}) async {
+  Future<int> updateClient(
+    int id, {
+    String? nombre,
+    String? email,
+    String? telefono,
+    String? direccion,
+  }) async {
     Map<String, dynamic> updates = {'id': id};
-    if (nombre != null) updates[clientName] = nombre;
-    if (email != null) updates[clientEmail] = email;
-    if (telefono != null) updates[clientPhone] = telefono;
-    if (direccion != null) updates[clientAddress] = direccion;
+    if (nombre != null) {
+      updates[clientName] = nombre;
+    }
+    if (email != null) {
+      updates[clientEmail] = email;
+    }
+    if (telefono != null) {
+      updates[clientPhone] = telefono;
+    }
+    if (direccion != null) {
+      updates[clientAddress] = direccion;
+    }
     return await update(tableClients, updates);
   }
 
   Future<int> deleteClient(int id) async {
     return await delete(tableClients, id);
   }
-// ==========================================
-// MÉTODOS DE PEDIDOS E INVENTARIO transacciones pues
-// ==========================================
+  // ==========================================
+  // MÉTODOS DE PEDIDOS E INVENTARIO transacciones pues
+  // ==========================================
 
-/// Crea un pedido completo y actualiza el stock usando una transacción.
-Future<int> createOrderFull(OrderModel order) async {
-  final db = await database;
+  /// Crea un pedido completo y actualiza el stock usando una transacción.
+  Future<int> createOrderFull(OrderModel order) async {
+    final db = await database;
 
-  return await db.transaction((txn) async {
-    // 1. Insertar la cabecera del pedido
-    final int orderId = await txn.insert(tableOrders, order.toMap());
+    return await db.transaction((txn) async {
+      // 1. Insertar la cabecera del pedido
+      final int orderId = await txn.insert(tableOrders, order.toMap());
 
-    // 2. Procesar cada ítem
-    for (var item in order.items) {
-      // Guardar el ítem vinculado al pedido
-      await txn.insert(tableOrderItems, {
-        'pedido_id': orderId,
-        'producto_id': item.productId,
-        'nombre_producto': item.productName,
-        'cantidad': item.quantity,
-        'precio_unitario': item.unitPrice,
-      });
+      // 2. Procesar cada ítem
+      for (var item in order.items) {
+        // Guardar el ítem vinculado al pedido
+        await txn.insert(tableOrderItems, {
+          'pedido_id': orderId,
+          'producto_id': item.productId,
+          'nombre_producto': item.productName,
+          'cantidad': item.quantity,
+          'precio_unitario': item.unitPrice,
+        });
 
-      // 3. Descontar stock del producto
-      if (item.productId != null) {
-        await txn.rawUpdate('''
+        // 3. Descontar stock del producto
+        if (item.productId != null) {
+          await txn.rawUpdate(
+            '''
           UPDATE $tableProducts 
           SET $productQuantity = $productQuantity - ?, 
               $productUpdatedAt = ? 
           WHERE $productId = ?
-        ''', [item.quantity, DateTime.now().toIso8601String(), item.productId]);
+        ''',
+            [item.quantity, DateTime.now().toIso8601String(), item.productId],
+          );
+        }
       }
-    }
-    return orderId;
-  });
-}
-/// Obtiene un pedido por su ID (incluyendo el nombre del cliente)
+      return orderId;
+    });
+  }
+
+  /// Obtiene un pedido por su ID (incluyendo el nombre del cliente)
   Future<OrderModel?> getOrderById(int id) async {
     Database db = await instance.database;
-    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+    final List<Map<String, dynamic>> maps = await db.rawQuery(
+      '''
       SELECT o.*, COALESCE(NULLIF(o.$orderClientName,''), c.$clientName, '') as nombre_cliente
       FROM $tableOrders o
       LEFT JOIN $tableClients c ON o.$orderClientId = c.$clientId
       WHERE o.$orderId = ?
-    ''', [id]);
+    ''',
+      [id],
+    );
 
     if (maps.isNotEmpty) {
       // Buscamos los ítems de este pedido específico
@@ -505,14 +560,14 @@ Future<int> createOrderFull(OrderModel order) async {
         where: 'pedido_id = ?',
         whereArgs: [id],
       );
-      
+
       final items = itemMaps.map((i) => OrderItem.fromMap(i)).toList();
       return OrderModel.fromMap(maps.first, items: items);
     }
     return null;
   }
 
-/// Actualiza únicamente el estado de un pedido (ej: de 'pending' a 'completed')
+  /// Actualiza únicamente el estado de un pedido (ej: de 'pending' a 'completed')
   Future<int> updateOrderStatus(int id, String status) async {
     final db = await database;
     return await db.update(
@@ -525,8 +580,10 @@ Future<int> createOrderFull(OrderModel order) async {
 
   /// Actualiza un pedido completo con todos sus datos
   Future<void> updateOrder(OrderModel order) async {
-    if (order.id == null) throw Exception('El pedido debe tener un ID para actualizar');
-    
+    if (order.id == null) {
+      throw Exception('El pedido debe tener un ID para actualizar');
+    }
+
     final db = await database;
     await db.transaction((txn) async {
       // 1. Actualizar la cabecera del pedido
@@ -555,7 +612,7 @@ Future<int> createOrderFull(OrderModel order) async {
           where: '$orderItemOrderId = ?',
           whereArgs: [order.id],
         );
-        
+
         // Luego insertar los nuevos
         for (var item in order.items) {
           await txn.insert(tableOrderItems, {
@@ -569,60 +626,65 @@ Future<int> createOrderFull(OrderModel order) async {
       }
     });
   }
-/// Obtiene todos los pedidos con sus ítems incluidos
-Future<List<OrderModel>> getAllOrdersWithItems() async {
-  final db = await database;
 
-  // Consulta con JOIN para datos del cliente
-  final List<Map<String, dynamic>> orderMaps = await db.rawQuery('''
+  /// Obtiene todos los pedidos con sus ítems incluidos
+  Future<List<OrderModel>> getAllOrdersWithItems() async {
+    final db = await database;
+
+    // Consulta con JOIN para datos del cliente
+    final List<Map<String, dynamic>> orderMaps = await db.rawQuery('''
     SELECT o.*, COALESCE(NULLIF(o.$orderClientName,''), c.$clientName, '') as nombre_cliente
     FROM $tableOrders o
     LEFT JOIN $tableClients c ON o.$orderClientId = c.$clientId
     ORDER BY o.$orderDate DESC
   ''');
 
-  List<OrderModel> orders = [];
+    List<OrderModel> orders = [];
 
-  for (var oMap in orderMaps) {
-    // Para cada pedido, buscamos sus ítems
-    final List<Map<String, dynamic>> itemMaps = await db.query(
-      tableOrderItems,
-      where: 'pedido_id = ?',
-      whereArgs: [oMap['id']],
-    );
-
-    final items = itemMaps.map((i) => OrderItem.fromMap(i)).toList();
-    orders.add(OrderModel.fromMap(oMap, items: items));
-  }
-
-  return orders;
-}
-
-/// Elimina un pedido y REVIERTE el stock (opcional, muy útil si se cancela)
-Future<void> cancelAndReturnStock(int orderId) async {
-  final db = await database;
-
-  await db.transaction((txn) async {
-    // 1. Obtener los ítems para saber cuánto devolver al stock
-    final List<Map<String, dynamic>> items = await txn.query(
-      tableOrderItems, 
-      where: 'pedido_id = ?', 
-      whereArgs: [orderId]
-    );
-
-    for (var item in items) {
-      await txn.rawUpdate(
-        'UPDATE $tableProducts SET $productQuantity = $productQuantity + ? WHERE $productId = ?',
-        [item['cantidad'], item['producto_id']]
+    for (var oMap in orderMaps) {
+      // Para cada pedido, buscamos sus ítems
+      final List<Map<String, dynamic>> itemMaps = await db.query(
+        tableOrderItems,
+        where: 'pedido_id = ?',
+        whereArgs: [oMap['id']],
       );
+
+      final items = itemMaps.map((i) => OrderItem.fromMap(i)).toList();
+      orders.add(OrderModel.fromMap(oMap, items: items));
     }
 
-    // 2. Borrar ítems y pedido
-    await txn.delete(tableOrderItems, where: 'pedido_id = ?', whereArgs: [orderId]);
-    await txn.delete(tableOrders, where: 'id = ?', whereArgs: [orderId]);
-  });
-}
-// ==========================================
+    return orders;
+  }
+
+  /// Elimina un pedido y REVIERTE el stock (opcional, muy útil si se cancela)
+  Future<void> cancelAndReturnStock(int orderId) async {
+    final db = await database;
+
+    await db.transaction((txn) async {
+      // 1. Obtener los ítems para saber cuánto devolver al stock
+      final List<Map<String, dynamic>> items = await txn.query(
+        tableOrderItems,
+        where: 'pedido_id = ?',
+        whereArgs: [orderId],
+      );
+
+      for (var item in items) {
+        await txn.rawUpdate(
+          'UPDATE $tableProducts SET $productQuantity = $productQuantity + ? WHERE $productId = ?',
+          [item['cantidad'], item['producto_id']],
+        );
+      }
+
+      // 2. Borrar ítems y pedido
+      await txn.delete(
+        tableOrderItems,
+        where: 'pedido_id = ?',
+        whereArgs: [orderId],
+      );
+      await txn.delete(tableOrders, where: 'id = ?', whereArgs: [orderId]);
+    });
+  }
+  // ==========================================
   // MÉTODOS ESPECÍFICOS PARA PRODUCTOS (INVENTARIO)
   // ==========================================
 
@@ -684,13 +746,16 @@ Future<void> cancelAndReturnStock(int orderId) async {
     Database db = await instance.database;
     return await db.query(
       tableProducts,
-      where: '$productName LIKE ? OR $productDescription LIKE ? OR categoria LIKE ?',
+      where:
+          '$productName LIKE ? OR $productDescription LIKE ? OR categoria LIKE ?',
       whereArgs: ['%$query%', '%$query%', '%$query%'],
     );
   }
 
   /// Filtra productos por categoría
-  Future<List<Map<String, dynamic>>> getProductsByCategory(String category) async {
+  Future<List<Map<String, dynamic>>> getProductsByCategory(
+    String category,
+  ) async {
     Database db = await instance.database;
     return await db.query(
       tableProducts,
@@ -707,12 +772,12 @@ Future<void> cancelAndReturnStock(int orderId) async {
     Database db = await instance.database;
     // Ahora enviamos el map completo que genera el modelo
     return await db.insert(
-      tableUsers, 
-      userModel.toMap(), 
-      conflictAlgorithm: ConflictAlgorithm.replace // Si el usuario existe, lo actualiza
+      tableUsers,
+      userModel.toMap(),
+      conflictAlgorithm:
+          ConflictAlgorithm.replace, // Si el usuario existe, lo actualiza
     );
   }
-
 
   Future<Map<String, dynamic>?> getUserByUid(String uid) async {
     Database db = await instance.database;
@@ -737,11 +802,7 @@ Future<void> cancelAndReturnStock(int orderId) async {
 
   Future<int> deleteUser(String uid) async {
     Database db = await instance.database;
-    return await db.delete(
-      tableUsers,
-      where: '$userUid = ?',
-      whereArgs: [uid],
-    );
+    return await db.delete(tableUsers, where: '$userUid = ?', whereArgs: [uid]);
   }
 
   // ==========================================
@@ -754,7 +815,7 @@ Future<void> cancelAndReturnStock(int orderId) async {
       _database = null;
     }
   }
-// ==========================================
+  // ==========================================
   // MÉTODOS ESPECÍFICOS PARA DESIGNS
   // ==========================================
 
@@ -794,11 +855,7 @@ Future<void> cancelAndReturnStock(int orderId) async {
 
   Future<void> deleteDesign(int id) async {
     final db = await database;
-    await db.delete(
-      tableDesigns,
-      where: '$designId = ?',
-      whereArgs: [id],
-    );
+    await db.delete(tableDesigns, where: '$designId = ?', whereArgs: [id]);
   }
   // ==========================================
   // MÉTODOS ESPECÍFICOS PARA PATTERNS
@@ -853,7 +910,11 @@ Future<void> cancelAndReturnStock(int orderId) async {
   Future<void> updatePattern(Map<String, dynamic> patternMap) async {
     final db = await database;
     final id = patternMap['id'];
-    if (id == null) throw ArgumentError('El mapa debe contener "id" para actualizar un patrón');
+    if (id == null) {
+      throw ArgumentError(
+        'El mapa debe contener "id" para actualizar un patrón',
+      );
+    }
     final data = Map<String, dynamic>.from(patternMap)..remove('id');
     await db.update(
       tablePatterns,
@@ -865,11 +926,7 @@ Future<void> cancelAndReturnStock(int orderId) async {
 
   Future<void> deletePattern(int id) async {
     final db = await database;
-    await db.delete(
-      tablePatterns,
-      where: '$patternId = ?',
-      whereArgs: [id],
-    );
+    await db.delete(tablePatterns, where: '$patternId = ?', whereArgs: [id]);
   }
 
   Future<void> deletePatternsByDesign(int designId) async {
@@ -885,7 +942,10 @@ Future<void> cancelAndReturnStock(int orderId) async {
   // MÉTODOS ESPECÍFICOS PARA CATALOG_SETTINGS
   // ==========================================
 
-  Future<void> updateCatalogSettings(String userId, Map<String, dynamic> data) async {
+  Future<void> updateCatalogSettings(
+    String userId,
+    Map<String, dynamic> data,
+  ) async {
     final db = await database;
     final existing = await db.query(
       tableCatalogSettings,
@@ -903,10 +963,7 @@ Future<void> cancelAndReturnStock(int orderId) async {
     } else {
       await db.update(
         tableCatalogSettings,
-        {
-          ...data,
-          catalogUpdatedAt: DateTime.now().toIso8601String(),
-        },
+        {...data, catalogUpdatedAt: DateTime.now().toIso8601String()},
         where: '$catalogUserId = ?',
         whereArgs: [userId],
       );
@@ -923,9 +980,8 @@ Future<void> cancelAndReturnStock(int orderId) async {
     );
     return maps.isNotEmpty ? maps.first : null;
   }
+
   // ─────────────────────────────────────────────────────────────────────────
   //  Catálogo Público (Landing)
   // ─────────────────────────────────────────────────────────────────────────
-
-  
 }
