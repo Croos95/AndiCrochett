@@ -1,18 +1,17 @@
-# CI para el proyecto Flutter + Firebase Functions (AndiCrochett)
+# CI para el proyecto AndiCrochett.
 #
-# Este pipeline:
-# - Valida formato y análisis estático
-# - Ejecuta pruebas Flutter con cobertura
-# - Compila Android App Bundle
-# - Compila aplicación Web
-# - Ejecuta CI para Cloud Functions
+# Este pipeline ejecuta en paralelo (cuando es posible):
+#   - Análisis y tests del cliente Flutter
+#   - Build de Android (AAB) y Web
+#   - Tests del backend Node.js (smoke + integración contra SQLite local en CI)
+#   - CI de las Cloud Functions legadas
 #
-# Recomendaciones aplicadas:
-# - Uso de JDK 17
-# - Eliminado flutterfire configure en CI
-# - Validación de formato Dart
-# - Cache de pub
-# - Optimización general
+# Notas:
+#   - Java 17 y Flutter stable.
+#   - Tests Flutter ya no requieren `-j 1`: con la migración al backend REST,
+#     los tests de integración contra SQLite local fueron removidos.
+#   - El job del backend usa un archivo SQLite temporal y NODE_ENV=test
+#     activa el bypass de auth en backend/src/auth.js.
 
 name: CI AndiCrochett
 
@@ -20,14 +19,13 @@ on:
   push:
     branches:
       - main
-
   pull_request:
     branches:
       - main
 
 jobs:
-  analizar_y_probar:
-    name: Analizar y Probar (Flutter)
+  analizar_y_probar_flutter:
+    name: Flutter — Analizar y probar
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -66,10 +64,7 @@ jobs:
         run: flutter analyze
 
       - name: 8. Ejecutar pruebas y generar cobertura
-        # -j 1:
-        # Los tests de integración comparten SQLite,
-        # así que se ejecutan en serie para evitar conflictos.
-        run: flutter test --coverage -j 1
+        run: flutter test --coverage
 
       - name: 9. Subir artefacto de cobertura
         uses: actions/upload-artifact@v4
@@ -77,9 +72,37 @@ jobs:
           name: reporte-cobertura-lcov
           path: coverage/lcov.info
 
+  probar_backend:
+    name: Backend — Tests (Node + SQLite)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: 1. Checkout del código
+        uses: actions/checkout@v4
+
+      - name: 2. Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: 3. Instalar dependencias
+        run: npm ci
+
+      - name: 4. Ejecutar tests
+        run: npm test
+        env:
+          NODE_ENV: test
+
   compilar_android:
-    name: Compilar para Android
-    needs: analizar_y_probar
+    name: Flutter — Compilar Android
+    needs: analizar_y_probar_flutter
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -112,6 +135,9 @@ jobs:
         run: flutter pub get
 
       - name: 6. Compilar Android App Bundle (AAB)
+        # En CI no se inyecta BASE_URL: el AAB queda apuntando al backend de
+        # desarrollo. Cuando definas un backend de producción, agrégalo aquí:
+        #   --dart-define=BASE_URL=https://tu-api.com/api
         run: flutter build appbundle --release
 
       - name: 7. Subir artefacto Android (AAB)
@@ -121,8 +147,8 @@ jobs:
           path: build/app/outputs/bundle/release/*.aab
 
   compilar_web:
-    name: Compilar para Web
-    needs: analizar_y_probar
+    name: Flutter — Compilar Web
+    needs: analizar_y_probar_flutter
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -158,9 +184,13 @@ jobs:
           path: build/web
 
   ci_functions:
-    name: CI para Cloud Functions
+    name: Cloud Functions legadas — CI
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Job heredado del backend anterior basado en Firebase Cloud Functions.
+    # Se mantiene por compatibilidad mientras el código de `functions/` siga
+    # desplegado. Cuando termines la migración al backend Node, elimina este
+    # job y el directorio `functions/`.
 
     defaults:
       run:

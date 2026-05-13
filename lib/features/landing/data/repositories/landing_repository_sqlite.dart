@@ -1,9 +1,14 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:andicrochett/database_helper.dart';
+
+import 'package:andicrochett/core/config/env.dart';
+import 'package:andicrochett/core/services/api_client.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  CatalogSettingsModel
+//  DEPRECATED: usa CatalogSettings en lib/features/landing_connection/data/
+//  models/catalog_settings_model.dart. Esta clase se mantiene solo por
+//  compatibilidad con código antiguo.
 // ─────────────────────────────────────────────────────────────────────────────
 
 @immutable
@@ -66,20 +71,10 @@ class CatalogSettingsModel {
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
-
-  void addFeaturedProduct(String productId) {
-    if (!featuredProducts.contains(productId)) {
-      (featuredProducts).add(productId);
-    }
-  }
-
-  void removeFeaturedProduct(String productId) {
-    (featuredProducts).remove(productId);
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Repository
+//  Repository — consume /api/catalog
 // ─────────────────────────────────────────────────────────────────────────────
 
 abstract class LandingRepository {
@@ -92,31 +87,34 @@ abstract class LandingRepository {
 }
 
 class LandingRepositoryImpl extends LandingRepository {
-  final DatabaseHelper _db = DatabaseHelper.instance;
+  LandingRepositoryImpl({ApiClient? api}) : _api = api ?? ApiClient.instance;
+
+  final ApiClient _api;
 
   @override
   Stream<CatalogSettingsModel?> watchCatalog(String userId) async* {
-    // Initial load
-    final settings = await _db.getCatalogSettings(userId);
-    yield settings != null ? CatalogSettingsModel.fromMap(settings) : null;
-
-    // Listen to changes (simulated with periodic check)
+    yield await getCatalog(userId);
     while (true) {
-      await Future.delayed(Duration(milliseconds: 500));
-      final updated = await _db.getCatalogSettings(userId);
-      yield updated != null ? CatalogSettingsModel.fromMap(updated) : null;
+      await Future.delayed(Env.pollInterval);
+      yield await getCatalog(userId);
     }
   }
 
   @override
   Future<CatalogSettingsModel?> getCatalog(String userId) async {
-    final settings = await _db.getCatalogSettings(userId);
-    return settings != null ? CatalogSettingsModel.fromMap(settings) : null;
+    try {
+      final data = await _api.get('/catalog/me');
+      if (data == null) return null;
+      return CatalogSettingsModel.fromMap(data as Map<String, dynamic>);
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) return null;
+      rethrow;
+    }
   }
 
   @override
   Future<void> updateCatalog(CatalogSettingsModel catalog) async {
-    await _db.updateCatalogSettings(catalog.userId, {
+    await _api.put('/catalog/me', body: {
       'es_publico': catalog.isPublic ? 1 : 0,
       'productos_destacados': jsonEncode(catalog.featuredProducts),
     });
@@ -126,15 +124,13 @@ class LandingRepositoryImpl extends LandingRepository {
   Future<void> togglePublicCatalog(String userId, bool isPublic) async {
     final existing = await getCatalog(userId);
     if (existing != null) {
-      final updated = existing.copyWith(isPublic: isPublic);
-      await updateCatalog(updated);
+      await updateCatalog(existing.copyWith(isPublic: isPublic));
     } else {
-      final newSettings = CatalogSettingsModel(
+      await updateCatalog(CatalogSettingsModel(
         userId: userId,
         isPublic: isPublic,
         createdAt: DateTime.now(),
-      );
-      await updateCatalog(newSettings);
+      ));
     }
   }
 
@@ -142,32 +138,27 @@ class LandingRepositoryImpl extends LandingRepository {
   Future<void> addFeaturedProduct(String userId, String productId) async {
     final existing = await getCatalog(userId);
     if (existing != null) {
-      if (!existing.featuredProducts.contains(productId)) {
-        final updated = existing.copyWith(
-          featuredProducts: [...existing.featuredProducts, productId],
-        );
-        await updateCatalog(updated);
-      }
+      if (existing.featuredProducts.contains(productId)) return;
+      await updateCatalog(existing.copyWith(
+        featuredProducts: [...existing.featuredProducts, productId],
+      ));
     } else {
-      final newSettings = CatalogSettingsModel(
+      await updateCatalog(CatalogSettingsModel(
         userId: userId,
         featuredProducts: [productId],
         createdAt: DateTime.now(),
-      );
-      await updateCatalog(newSettings);
+      ));
     }
   }
 
   @override
   Future<void> removeFeaturedProduct(String userId, String productId) async {
     final existing = await getCatalog(userId);
-    if (existing != null) {
-      final updated = existing.copyWith(
-        featuredProducts: existing.featuredProducts
-            .where((id) => id != productId)
-            .toList(),
-      );
-      await updateCatalog(updated);
-    }
+    if (existing == null) return;
+    await updateCatalog(existing.copyWith(
+      featuredProducts: existing.featuredProducts
+          .where((id) => id != productId)
+          .toList(),
+    ));
   }
 }

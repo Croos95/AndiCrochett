@@ -68,10 +68,7 @@ class AuthRepository {
     }
   }
 
-  Future<void> sendVerificationEmail({
-    String? continueUrl,
-    String? dynamicLinkDomain,
-  }) async {
+  Future<void> sendVerificationEmail() async {
     final user = _auth.currentUser;
     if (user == null) {
       throw FirebaseAuthException(
@@ -81,27 +78,14 @@ class AuthRepository {
     }
 
     try {
-      // Configurar ActionCodeSettings para personalizar el email
-      final actionCodeSettings = ActionCodeSettings(
-        url: continueUrl ?? 'https://andicrochett.firebaseapp.com',
-        handleCodeInApp: true,
-        dynamicLinkDomain: dynamicLinkDomain ?? 'andicrochett.page.link',
-        iOSBundleId: 'com.example.andicrochett',
-        androidPackageName: 'com.example.andicrochett',
-        androidInstallApp: true,
-        androidMinimumVersion: '1',
-      );
-
-      // Enviar email de verificación
-      await user.sendEmailVerification(actionCodeSettings);
+      await user.sendEmailVerification();
     } on FirebaseAuthException catch (e) {
-      // Re-lanzar con mejor mensaje
       throw FirebaseAuthException(
         code: e.code,
         message:
             'Error al enviar el correo de verificación: ${e.message ?? 'Error desconocido'}',
       );
-    } catch (e) {
+    } catch (_) {
       throw FirebaseAuthException(
         code: 'send-email-failed',
         message:

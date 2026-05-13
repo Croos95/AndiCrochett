@@ -1,90 +1,126 @@
-import 'dart:async';
-import 'package:flutter/foundation.dart';
-import 'package:andicrochett/database_helper.dart';
+import 'package:andicrochett/core/config/env.dart';
+import 'package:andicrochett/core/services/api_client.dart';
 import 'package:andicrochett/features/patterns/data/models/pattern_model.dart';
 
-/// Repositorio de Patrones usando SQLite de forma directa
+/// Repositorio de Patrones contra la API REST.
+///
+/// Los datos son compartidos entre todos los usuarios autenticados;
+/// `watchByUser` se mantiene por compatibilidad con las páginas pero devuelve
+/// todos los patrones (el userId queda como audit trail en cada registro).
 class PatternRepository {
-  PatternRepository({DatabaseHelper? dbHelper})
-    : _db = dbHelper ?? DatabaseHelper.instance;
+  PatternRepository({ApiClient? api}) : _api = api ?? ApiClient.instance;
 
-  final DatabaseHelper _db;
+  final ApiClient _api;
+
+  static const _basePath = '/patterns';
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Streams (Flujos de datos en tiempo real simulados)
+  // Streams (polling con intervalo de Env.pollInterval)
   // ─────────────────────────────────────────────────────────────────────────
 
-  Stream<List<PatternModel>> watchAll() =>
-      _refresh(() => _db.getAllPatterns()).distinct(_listEq);
+  Stream<List<PatternModel>> watchAll() async* {
+    yield await fetchAll();
+    yield* _refresh(fetchAll);
+  }
 
-  Stream<List<PatternModel>> watchByUser(String userId) =>
-      _refresh(() => _db.getPatternsByUser(userId)).distinct(_listEq);
+  Stream<List<PatternModel>> watchByUser(String _) async* {
+    yield await fetchAll();
+    yield* _refresh(fetchAll);
+  }
 
-  Stream<List<PatternModel>> watchByDesign(int designId) =>
-      _refresh(() => _db.getPatternsByDesign(designId)).distinct(_listEq);
+  Stream<List<PatternModel>> watchByDesign(int designId) async* {
+    yield await fetchByDesign(designId);
+    yield* _refresh(() => fetchByDesign(designId));
+  }
 
-  Stream<PatternModel?> watchById(int id) =>
-      _refresh(() => _db.getPatternById(id)).distinct(_singleEq);
+  Stream<PatternModel?> watchById(int id) async* {
+    yield await fetchById(id);
+    yield* _refresh(() => fetchById(id));
+  }
 
   Stream<T> _refresh<T>(Future<T> Function() fetch) async* {
-    yield await fetch();
     while (true) {
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(Env.pollInterval);
       yield await fetch();
     }
   }
 
-  // Comparadores: evitan re-emisiones cuando el contenido no cambió,
-  // así StreamBuilder no reconstruye el grid en cada poll de 500ms.
-  static bool _listEq(List<PatternModel> a, List<PatternModel> b) {
-    if (identical(a, b)) return true;
-    if (a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
-      if (!mapEquals(a[i].toMap(), b[i].toMap())) return false;
+  // ─────────────────────────────────────────────────────────────────────────
+  // Fetch
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<List<PatternModel>> fetchAll() async {
+    final data = await _api.get(_basePath) as List<dynamic>;
+    return data.map((m) => PatternModel.fromMap(m as Map<String, dynamic>)).toList();
+  }
+
+  Future<List<PatternModel>> fetchByUser(String _) => fetchAll();
+
+  Future<List<PatternModel>> fetchByDesign(int designId) async {
+    final data = await _api.get(
+      _basePath,
+      query: {'designId': designId},
+    ) as List<dynamic>;
+    return data.map((m) => PatternModel.fromMap(m as Map<String, dynamic>)).toList();
+  }
+
+  Future<PatternModel?> fetchById(int id) async {
+    try {
+      final data = await _api.get('$_basePath/$id') as Map<String, dynamic>;
+      return PatternModel.fromMap(data);
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) return null;
+      rethrow;
     }
-    return true;
-  }
-
-  static bool _singleEq(PatternModel? a, PatternModel? b) {
-    if (identical(a, b)) return true;
-    if (a == null || b == null) return false;
-    return mapEquals(a.toMap(), b.toMap());
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Fetch methods (Consultas únicas)
+  // CRUD
   // ─────────────────────────────────────────────────────────────────────────
 
-  Future<List<PatternModel>> fetchAll() => _db.getAllPatterns();
-
-  Future<List<PatternModel>> fetchByUser(String userId) =>
-      _db.getPatternsByUser(userId);
-
-  Future<List<PatternModel>> fetchByDesign(int designId) =>
-      _db.getPatternsByDesign(designId);
-
-  Future<PatternModel?> fetchById(int id) => _db.getPatternById(id);
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // CRUD methods (Escritura y borrado)
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Future<void> create(PatternModel pattern) async {
-    await _db.createPattern(pattern.toMap());
+  Future<PatternModel> create(PatternModel pattern) async {
+    final body = _toBody(pattern);
+    final data = await _api.post(_basePath, body: body) as Map<String, dynamic>;
+    return PatternModel.fromMap(data);
   }
 
-  Future<void> update(PatternModel pattern) async {
+  Future<PatternModel> update(PatternModel pattern) async {
     if (pattern.id == null) throw Exception('El patrón no tiene ID');
-    await _db.updatePattern(pattern.toMap());
+    final body = _toBody(pattern);
+    final data = await _api.put('$_basePath/${pattern.id}', body: body) as Map<String, dynamic>;
+    return PatternModel.fromMap(data);
   }
 
-  Future<void> delete(int id) => _db.deletePattern(id);
+  Future<void> delete(int id) => _api.delete('$_basePath/$id');
 
-  Future<void> deleteByDesign(int designId) =>
-      _db.deletePatternsByDesign(designId);
+  /// Borra todos los patrones de un diseño. El backend cascade-elimina los
+  /// patrones cuando se borra el diseño padre, así que aquí solo hacemos
+  /// el borrado manual cuando se necesite (por ejemplo, mantener el design
+  /// pero limpiar sus patrones).
+  Future<void> deleteByDesign(int designId) async {
+    final patterns = await fetchByDesign(designId);
+    for (final p in patterns) {
+      if (p.id != null) await delete(p.id!);
+    }
+  }
 
   Future<int> countByDesign(int designId) async {
-    final patterns = await _db.getPatternsByDesign(designId);
+    final patterns = await fetchByDesign(designId);
     return patterns.length;
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Helpers
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Map<String, dynamic> _toBody(PatternModel pattern) => {
+    'nombre': pattern.name,
+    'tipo': pattern.type.sqliteValue,
+    'design_id': pattern.designId,
+    'dificultad': pattern.difficulty.sqliteValue,
+    'material_sugerido': pattern.suggestedMaterial,
+    'tamano_gancho': pattern.hookSize,
+    'estado': pattern.status.sqliteValue,
+    'texto_patron': pattern.rawText,
+  };
 }

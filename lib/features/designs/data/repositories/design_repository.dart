@@ -1,34 +1,36 @@
-import 'package:andicrochett/database_helper.dart';
+import 'package:andicrochett/core/config/env.dart';
+import 'package:andicrochett/core/services/api_client.dart';
 import 'package:andicrochett/features/designs/data/models/design_model.dart';
 
 // =============================================================================
 //  DesignRepository
-//  Repositorio para CRUD en SQLite sobre la tabla 'designs'.
-//  Usa polling (igual que PatternRepository) para evitar race conditions
-//  con broadcast streams.
+//  CRUD de diseños contra la API REST. Los datos son compartidos entre todos
+//  los usuarios autenticados: `watchByUser(userId)` se mantiene por compatibilidad
+//  pero devuelve todos los diseños (el userId pasa a ser solo audit trail).
 // =============================================================================
 
 class DesignRepository {
-  DesignRepository({DatabaseHelper? dbHelper})
-    : _db = dbHelper ?? DatabaseHelper.instance;
+  DesignRepository({ApiClient? api}) : _api = api ?? ApiClient.instance;
 
-  final DatabaseHelper _db;
+  final ApiClient _api;
 
-  // ── Streams ───────────────────────────────────────────────────────────────
+  static const _basePath = '/designs';
 
-  Stream<List<DesignModel>> watchByUser(String userId) async* {
-    yield await _fetchDesignsByUser(userId);
-    yield* _streamWithRefresh(() => _fetchDesignsByUser(userId));
+  // ── Streams (polling con intervalo de Env.pollInterval) ──────────────────
+
+  Stream<List<DesignModel>> watchByUser(String _) async* {
+    yield await getAll();
+    yield* _refresh(getAll);
   }
 
   Stream<DesignModel?> watchById(int id) async* {
-    yield await _db.getDesignById(id);
-    yield* _streamWithRefresh(() => _db.getDesignById(id));
+    yield await getById(id);
+    yield* _refresh(() => getById(id));
   }
 
-  Stream<T> _streamWithRefresh<T>(Future<T> Function() fetch) async* {
+  Stream<T> _refresh<T>(Future<T> Function() fetch) async* {
     while (true) {
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(Env.pollInterval);
       yield await fetch();
     }
   }
@@ -36,62 +38,45 @@ class DesignRepository {
   // ── Lectura ───────────────────────────────────────────────────────────────
 
   Future<List<DesignModel>> getAll() async {
-    try {
-      return await _db.getAllDesigns();
-    } catch (e) {
-      throw Exception('Error al obtener diseños: $e');
-    }
-  }
-
-  Future<List<DesignModel>> _fetchDesignsByUser(String userId) async {
-    try {
-      final all = await _db.getAllDesigns();
-      return all.where((d) => d.userId == userId).toList();
-    } catch (e) {
-      throw Exception('Error al obtener diseños del usuario: $e');
-    }
+    final data = await _api.get(_basePath) as List<dynamic>;
+    return data.map((m) => DesignModel.fromMap(m as Map<String, dynamic>)).toList();
   }
 
   Future<DesignModel?> getById(int id) async {
     try {
-      return await _db.getDesignById(id);
-    } catch (e) {
-      throw Exception('Error al obtener el diseño #$id: $e');
+      final data = await _api.get('$_basePath/$id') as Map<String, dynamic>;
+      return DesignModel.fromMap(data);
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) return null;
+      rethrow;
     }
   }
 
   // ── Escritura ─────────────────────────────────────────────────────────────
 
-  Future<void> create(DesignModel design) async {
-    try {
-      if (design.userId.isEmpty) {
-        throw Exception('El diseño debe tener un usuario válido.');
-      }
-      await _db.createDesign(design);
-    } catch (e) {
-      throw Exception('Error al crear el diseño: $e');
+  Future<DesignModel> create(DesignModel design) async {
+    if (design.name.trim().isEmpty) {
+      throw Exception('El diseño debe tener un nombre.');
     }
+    final data = await _api.post(
+      _basePath,
+      body: {'nombre': design.name, 'descripcion': design.description},
+    ) as Map<String, dynamic>;
+    return DesignModel.fromMap(data);
   }
 
-  Future<void> update(DesignModel design) async {
-    try {
-      if (design.id == null) {
-        throw Exception('No se puede actualizar un diseño sin ID.');
-      }
-      await _db.updateDesign(design);
-    } catch (e) {
-      throw Exception('Error al actualizar el diseño: $e');
+  Future<DesignModel> update(DesignModel design) async {
+    if (design.id == null) {
+      throw Exception('No se puede actualizar un diseño sin ID.');
     }
+    final data = await _api.put(
+      '$_basePath/${design.id}',
+      body: {'nombre': design.name, 'descripcion': design.description},
+    ) as Map<String, dynamic>;
+    return DesignModel.fromMap(data);
   }
 
-  Future<void> delete(int id) async {
-    try {
-      await _db.deleteDesign(id);
-    } catch (e) {
-      throw Exception('Error al eliminar el diseño: $e');
-    }
-  }
+  Future<void> delete(int id) => _api.delete('$_basePath/$id');
 
-  // Las páginas llaman a dispose(); se mantiene como no-op para compatibilidad.
   void dispose() {}
 }

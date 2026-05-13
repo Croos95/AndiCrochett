@@ -1,90 +1,67 @@
-import 'package:andicrochett/database_helper.dart';
+import 'package:andicrochett/core/services/api_client.dart';
 import 'package:andicrochett/features/clients/data/models/client_model.dart';
 
-/// Repositorio de Clientes usando SQLite
+/// Repositorio de Clientes contra la API REST.
 class ClientRepository {
-  ClientRepository({DatabaseHelper? dbHelper})
-    : _db = dbHelper ?? DatabaseHelper.instance;
+  ClientRepository({ApiClient? api}) : _api = api ?? ApiClient.instance;
 
-  final DatabaseHelper _db;
+  final ApiClient _api;
+
+  static const _basePath = '/clients';
 
   // ── Lectura ───────────────────────────────────────────────────────────────
 
-  /// Obtiene todos los clientes.
   Future<List<ClientModel>> getAllClients() async {
-    try {
-      final results = await _db.getAllClients();
-      return results.map((map) => ClientModel.fromMap(map)).toList();
-    } catch (e) {
-      throw Exception('Error al obtener clientes: $e');
-    }
+    final data = await _api.get(_basePath) as List<dynamic>;
+    return data.map((m) => ClientModel.fromMap(m as Map<String, dynamic>)).toList();
   }
 
-  /// Obtiene un cliente por ID.
   Future<ClientModel?> getClientById(int id) async {
     try {
-      final result = await _db.queryById(DatabaseHelper.tableClients, id);
-      return result != null ? ClientModel.fromMap(result) : null;
-    } catch (e) {
-      throw Exception('Error al obtener cliente: $e');
+      final data = await _api.get('$_basePath/$id') as Map<String, dynamic>;
+      return ClientModel.fromMap(data);
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) return null;
+      rethrow;
     }
   }
 
-  /// Busca clientes por nombre o email.
+  /// Búsqueda client-side (el backend no expone endpoint de búsqueda para
+  /// clientes). Mantiene la misma firma que la versión anterior.
   Future<List<ClientModel>> searchClients(String query) async {
-    try {
-      final all = await getAllClients();
-      final lowerQuery = query.toLowerCase();
-      return all
-          .where(
-            (c) =>
-                c.name.toLowerCase().contains(lowerQuery) ||
-                c.email.toLowerCase().contains(lowerQuery),
-          )
-          .toList();
-    } catch (e) {
-      throw Exception('Error al buscar clientes: $e');
-    }
+    final all = await getAllClients();
+    final q = query.toLowerCase();
+    return all
+        .where((c) =>
+            c.name.toLowerCase().contains(q) ||
+            c.email.toLowerCase().contains(q))
+        .toList();
   }
 
   // ── Escritura ─────────────────────────────────────────────────────────────
 
-  /// Crea un nuevo cliente.
   Future<int> createClient(ClientModel client) async {
-    try {
-      return await _db.addClient(
-        client.name,
-        client.email.isNotEmpty ? client.email : null,
-        client.phone.isNotEmpty ? client.phone : null,
-        client.address.isNotEmpty ? client.address : null,
-      );
-    } catch (e) {
-      throw Exception('Error al crear cliente: $e');
-    }
+    final data = await _api.post(_basePath, body: _toBody(client)) as Map<String, dynamic>;
+    return data['id'] as int? ?? 0;
   }
 
-  /// Actualiza un cliente.
   Future<int> updateClient(ClientModel client) async {
-    try {
-      if (client.id == null) throw Exception('El cliente debe tener un ID');
-      return await _db.updateClient(
-        client.id!,
-        nombre: client.name,
-        email: client.email.isNotEmpty ? client.email : null,
-        telefono: client.phone.isNotEmpty ? client.phone : null,
-        direccion: client.address.isNotEmpty ? client.address : null,
-      );
-    } catch (e) {
-      throw Exception('Error al actualizar cliente: $e');
-    }
+    if (client.id == null) throw Exception('El cliente debe tener un ID');
+    await _api.put('$_basePath/${client.id}', body: _toBody(client));
+    return 1;
   }
 
-  /// Elimina un cliente.
   Future<int> deleteClient(int id) async {
-    try {
-      return await _db.deleteClient(id);
-    } catch (e) {
-      throw Exception('Error al eliminar cliente: $e');
-    }
+    await _api.delete('$_basePath/$id');
+    return 1;
   }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  Map<String, dynamic> _toBody(ClientModel c) => {
+    'nombre': c.name,
+    'email': c.email.isEmpty ? null : c.email,
+    'telefono': c.phone.isEmpty ? null : c.phone,
+    'direccion': c.address.isEmpty ? null : c.address,
+  };
 }

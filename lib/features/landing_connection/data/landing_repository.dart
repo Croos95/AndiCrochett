@@ -1,89 +1,79 @@
 import 'dart:async';
-import 'package:andicrochett/database_helper.dart';
+import 'dart:convert';
+
+import 'package:andicrochett/core/config/env.dart';
+import 'package:andicrochett/core/services/api_client.dart';
 import 'package:andicrochett/features/landing_connection/data/models/catalog_settings_model.dart';
 
-/// Repositorio SQLite para la configuración del catálogo público.
+/// Repositorio del catálogo público. Habla con el backend `/api/catalog`.
 class LandingRepository {
-  LandingRepository({DatabaseHelper? dbHelper})
-    : _db = dbHelper ?? DatabaseHelper.instance;
+  LandingRepository({ApiClient? api}) : _api = api ?? ApiClient.instance;
 
-  final DatabaseHelper _db;
+  final ApiClient _api;
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Streams (Flujos reactivos simulados)
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── Streams ───────────────────────────────────────────────────────────────
 
   Stream<CatalogSettings> watchCatalog(String userId) async* {
     yield await getCatalog(userId);
-    yield* _streamWithRefresh(() => getCatalog(userId));
-  }
-
-  Stream<T> _streamWithRefresh<T>(Future<T> Function() fetch) async* {
     while (true) {
-      await Future.delayed(const Duration(milliseconds: 500));
-      yield await fetch();
+      await Future.delayed(Env.pollInterval);
+      yield await getCatalog(userId);
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Operaciones CRUD
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── Lectura ───────────────────────────────────────────────────────────────
 
   Future<CatalogSettings> getCatalog(String userId) async {
-    final map = await _db.getCatalogSettings(userId);
-
-    if (map == null) return CatalogSettings.empty(userId);
-
-    // Cambiamos fromDoc (que era de Firebase) por fromMap (para SQLite)
-    return CatalogSettings.fromMap(map);
+    try {
+      final data = await _api.get('/catalog/me');
+      if (data == null) return CatalogSettings.empty(userId);
+      return CatalogSettings.fromMap(data as Map<String, dynamic>);
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) return CatalogSettings.empty(userId);
+      rethrow;
+    }
   }
 
+  // ── Escritura ─────────────────────────────────────────────────────────────
+
   Future<void> updateCatalog(CatalogSettings settings) async {
-    // Usaremos un método "upsert" (actualizar si existe, insertar si no existe)
-    await _db.updateCatalogSettings(settings.userId, settings.toMap());
+    await _api.put('/catalog/me', body: {
+      'es_publico': settings.isPublicCatalogEnabled ? 1 : 0,
+      'nombre_negocio': settings.businessName,
+      'email_contacto': settings.contactEmail,
+      'telefono_contacto': settings.contactPhone,
+      'instagram_contacto': settings.contactInstagram,
+      'productos_destacados': jsonEncode(settings.featuredProducts),
+      'patrones_destacados': jsonEncode(settings.featuredPatterns),
+    });
   }
 
   Future<void> togglePublicCatalog(String userId, bool enabled) async {
     final current = await getCatalog(userId);
-
     final updated = current.copyWith(
       isPublicCatalogEnabled: enabled,
       updatedAt: DateTime.now(),
     );
-
     await updateCatalog(updated);
   }
 
   Future<void> addFeaturedProduct(String userId, String productId) async {
     final current = await getCatalog(userId);
-
-    // Evitamos duplicados manualmente
-    if (!current.featuredProducts.contains(productId)) {
-      final updatedList = List<String>.from(current.featuredProducts)
-        ..add(productId);
-
-      final updated = current.copyWith(
-        featuredProducts: updatedList,
-        updatedAt: DateTime.now(),
-      );
-
-      await updateCatalog(updated);
-    }
+    if (current.featuredProducts.contains(productId)) return;
+    final list = List<String>.from(current.featuredProducts)..add(productId);
+    await updateCatalog(current.copyWith(
+      featuredProducts: list,
+      updatedAt: DateTime.now(),
+    ));
   }
 
   Future<void> removeFeaturedProduct(String userId, String productId) async {
     final current = await getCatalog(userId);
-
-    if (current.featuredProducts.contains(productId)) {
-      final updatedList = List<String>.from(current.featuredProducts)
-        ..remove(productId);
-
-      final updated = current.copyWith(
-        featuredProducts: updatedList,
-        updatedAt: DateTime.now(),
-      );
-
-      await updateCatalog(updated);
-    }
+    if (!current.featuredProducts.contains(productId)) return;
+    final list = current.featuredProducts.where((id) => id != productId).toList();
+    await updateCatalog(current.copyWith(
+      featuredProducts: list,
+      updatedAt: DateTime.now(),
+    ));
   }
 }

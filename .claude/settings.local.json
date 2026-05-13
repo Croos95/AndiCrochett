@@ -10,7 +10,8 @@
       "Bash(flutter --version)",
       "Bash(flutter config *)",
       "Bash(flutter devices *)",
-      "Bash(flutter build *)"
+      "Bash(flutter build *)",
+      "Bash(del \"c:\\\\Users\\\\ar90w\\\\OneDrive\\\\Escritorio\\\\AndiCrochett\\\\test\\\\integration\\\\database_helper_test.dart\")"
     ]
   }
 }
