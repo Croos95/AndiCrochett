@@ -29,25 +29,12 @@ class _PatternsPageState extends State<PatternsPage> {
   String _searchQuery = '';
   PatternType? _selectedType;
 
-  late final Stream<List<PatternModel>> _patternsStream;
-
   @override
   void initState() {
     super.initState();
     final userId = FirebaseAuth.instance.currentUser?.uid;
     // El stream se crea una sola vez para evitar que cada setState
     // (búsqueda/filtros) reinicie el StreamBuilder y muestre el loader.
-    _patternsStream = userId != null
-        ? _repo.watchByUser(userId)
-        : Stream<List<PatternModel>>.value(const []);
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    // Keep the stream stable across rebuilds so filter/search setState calls
-    // do not restart the StreamBuilder and flash the loading state.
     _patternsStream = userId != null
         ? _repo.watchByUser(userId)
         : Stream.value(const <PatternModel>[]);
