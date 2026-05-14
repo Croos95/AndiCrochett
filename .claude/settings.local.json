@@ -11,7 +11,18 @@
       "Bash(flutter config *)",
       "Bash(flutter devices *)",
       "Bash(flutter build *)",
-      "Bash(del \"c:\\\\Users\\\\ar90w\\\\OneDrive\\\\Escritorio\\\\AndiCrochett\\\\test\\\\integration\\\\database_helper_test.dart\")"
+      "Bash(del \"c:\\\\Users\\\\ar90w\\\\OneDrive\\\\Escritorio\\\\AndiCrochett\\\\test\\\\integration\\\\database_helper_test.dart\")",
+      "Bash(cross-env HTTPS_PORT=3443 PORT=3001 node src/server.js)",
+      "Bash(HTTPS_PORT=3443 PORT=3001 node src/server.js)",
+      "Bash(kill bu9amn50n *)",
+      "Bash(node -e \"const s = require\\('selfsigned'\\); const r = s.generate\\([{name:'commonName',value:'localhost'}], {days:1}\\); console.log\\('keys:', Object.keys\\(r\\)\\); console.log\\('cert preview:', typeof r.cert, r.cert?.slice?.\\(0,40\\)\\); console.log\\('private preview:', typeof r.private, r.private?.slice?.\\(0,40\\)\\);\")",
+      "Bash(node -e \"const s = require\\('selfsigned'\\); console.log\\('exports:', Object.keys\\(s\\)\\); console.log\\('generate is:', typeof s.generate\\);\")",
+      "Bash(node -e \"const s = require\\('selfsigned'\\); s.generate\\([{name:'commonName',value:'localhost'}], {days:1}, \\(err, pems\\) => { console.log\\('err:', err\\); console.log\\('keys:', Object.keys\\(pems||{}\\)\\); console.log\\('first 40 chars cert:', pems?.cert?.slice\\(0,40\\)\\); }\\);\")",
+      "Bash(HTTPS_PORT=3445 PORT=3010 node src/server.js)",
+      "Bash(curl -ks https://localhost:3445/health -i)",
+      "Bash(kill bcj3gzt2k *)",
+      "PowerShell(Move-Item \"c:\\\\Users\\\\ar90w\\\\OneDrive\\\\Escritorio\\\\AndiCrochett\\\\integration_test\\\\analytics_dashboard_e2e_test.dart\" \"c:\\\\Users\\\\ar90w\\\\OneDrive\\\\Escritorio\\\\AndiCrochett\\\\test\\\\e2e\\\\analytics_dashboard_e2e_test.dart\" -Force)",
+      "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\ar90w\\\\OneDrive\\\\Escritorio\\\\AndiCrochett\\\\test\\\\e2e\")"
     ]
   }
 }

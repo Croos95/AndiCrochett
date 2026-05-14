@@ -7,13 +7,14 @@
 //
 // Diseño:
 //   - `AnalyticsEvent` es un sealed-style enum con `name` y `params` libres.
-//   - `AnalyticsSink` es la interfaz de salida. Hay dos implementaciones:
-//       * `ConsoleAnalyticsSink` — imprime en debug (default).
-//       * `FirebaseAnalyticsSink` — stub que documenta el wiring a
-//          `firebase_analytics` (no se incluye el package para no requerir
-//          configuración nativa extra en este sprint).
+//   - `AnalyticsSink` es la interfaz de salida. Hay tres implementaciones:
+//       * `ConsoleAnalyticsSink` — imprime en debug.
+//       * `FirebaseAnalyticsSink` — envía cada evento a Firebase Analytics
+//          vía `firebase_analytics`.
+//       * `InMemoryAnalyticsSink` — captura las llamadas en una lista para tests.
 //   - Múltiples sinks pueden registrarse a la vez (fan-out).
 
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/foundation.dart';
 
 /// Catálogo cerrado de nombres de evento. Cambiar un nombre aquí impacta
@@ -67,20 +68,45 @@ class ConsoleAnalyticsSink implements AnalyticsSink {
   }
 }
 
-/// Stub de Firebase Analytics. La integración real requiere agregar
-/// `firebase_analytics` al pubspec y delegar al `FirebaseAnalytics.instance`.
-/// Se mantiene aquí como punto de extensión documentado.
+/// Envía cada evento a Firebase Analytics.
+///
+/// El SDK rechaza valores `null` y nombres/params que no cumplan sus reglas
+/// (snake_case, ≤40 chars, valores `num`/`String`/`bool`). Aquí saneamos para
+/// que llamadas con `null` o tipos exóticos no rompan el envío.
 class FirebaseAnalyticsSink implements AnalyticsSink {
+  FirebaseAnalyticsSink({FirebaseAnalytics? analytics})
+    : _analytics = analytics ?? FirebaseAnalytics.instance;
+
+  final FirebaseAnalytics _analytics;
+
+  FirebaseAnalytics get analytics => _analytics;
+
   @override
   Future<void> log(AnalyticsEvent event, Map<String, Object?> params) async {
-    // Wiring esperado:
-    //   await FirebaseAnalytics.instance.logEvent(
-    //     name: event.name,
-    //     parameters: params.cast<String, Object>(),
-    //   );
-    //
-    // Mientras no se instale el package, este sink es un no-op silencioso.
-    return;
+    final sanitized = <String, Object>{};
+    params.forEach((key, value) {
+      if (value == null) return;
+      if (value is num || value is String || value is bool) {
+        sanitized[key] = value;
+      } else {
+        sanitized[key] = value.toString();
+      }
+    });
+
+    await _analytics.logEvent(
+      name: event.name,
+      parameters: sanitized.isEmpty ? null : sanitized,
+    );
+  }
+
+  /// Atajo idiomático del SDK para registrar pantallas.
+  Future<void> logScreenView(String name) async {
+    await _analytics.logScreenView(screenName: name);
+  }
+
+  /// Asocia el UID al usuario actual — útil para reportes de retención.
+  Future<void> setUserId(String? uid) async {
+    await _analytics.setUserId(id: uid);
   }
 }
 

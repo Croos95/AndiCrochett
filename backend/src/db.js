@@ -112,6 +112,27 @@ db.exec(`
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
+
+  -- Bitácora de seguridad: cada request a la API + cada intento de login.
+  -- Alimenta la sección "Seguridad" del dashboard de analítica.
+  CREATE TABLE IF NOT EXISTS audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    event_type TEXT NOT NULL,            -- 'api_call' | 'login_attempt'
+    usuario_id TEXT,                     -- uid de Firebase si autenticado
+    email TEXT,                          -- usado en login attempts
+    method TEXT,                         -- HTTP method (api_call)
+    path TEXT,                           -- HTTP path (api_call)
+    status_code INTEGER,                 -- HTTP status (api_call) | 0/1 success (login_attempt)
+    success INTEGER,                     -- 1 = éxito, 0 = fallo
+    ip_address TEXT,
+    user_agent TEXT,
+    error_message TEXT,
+    duration_ms INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp);
+  CREATE INDEX IF NOT EXISTS idx_audit_event_type ON audit_log(event_type);
 `);
 
 module.exports = db;

@@ -43,12 +43,33 @@ cp .env.example .env
 ### Arrancar
 
 ```bash
-npm run dev    # con --watch (recarga al cambiar archivos)
-# o
-npm start
+npm run dev          # HTTP en :3000 con --watch (recarga al cambiar archivos)
+npm run dev:https    # HTTP en :3000 + HTTPS en :3443 (TLS auto-firmado)
+npm start            # producción (HTTP en :3000; HTTPS si HTTPS_PORT está seteado)
 ```
 
 El servidor escucha en `http://localhost:3000`. La base de datos se crea en `data/andicrochett.db` la primera vez.
+
+### HTTPS local
+
+Con `npm run dev:https` el server levanta **además** HTTPS en el puerto 3443. La primera ejecución genera un certificado auto-firmado en `backend/certs/` (cubre `localhost`, `127.0.0.1` y `10.0.2.2` para el emulador Android) y lo cachea para futuras corridas.
+
+Cosas a saber:
+- El cert NO está confiado por defecto. Espera `NET::ERR_CERT_AUTHORITY_INVALID` en Chrome — acepta la advertencia para probar. En `curl` usa `--insecure` (`-k`).
+- Las cabeceras de seguridad (HSTS, X-Frame-Options, etc.) las inyecta **`helmet`** y aplican igual sobre HTTP y HTTPS. El header `Strict-Transport-Security` solo tiene efecto real sobre HTTPS.
+- Para forzar HTTPS desde el cliente Flutter en producción, ya hay validación en [`Env.baseUrl`](../lib/core/config/env.dart) que exige `https://` cuando `dart.vm.product` está activo.
+
+Prueba rápida:
+
+```bash
+curl -k https://localhost:3443/health
+# {"ok":true,"service":"andicrochett-backend"}
+
+curl -k -I https://localhost:3443/health | grep -i strict
+# Strict-Transport-Security: max-age=31536000; includeSubDomains
+```
+
+Si quieres que el cert sea confiado en tu máquina (sin warnings de navegador), usa [`mkcert`](https://github.com/FiloSottile/mkcert): instala su CA local, genera certs con `mkcert localhost 127.0.0.1 10.0.2.2`, y copia los archivos a `backend/certs/` (`localhost.crt` y `localhost.key`).
 
 ## Probar la API
 

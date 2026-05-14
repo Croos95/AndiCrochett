@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:andicrochett/core/services/security_reporter.dart';
 import 'package:andicrochett/features/auth/data/repositories/auth_repository.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -49,15 +52,34 @@ class AuthProvider extends ChangeNotifier {
         _setError(
           'Debes verificar tu correo antes de ingresar. Te reenviamos el enlace.',
         );
+        unawaited(SecurityReporter.instance.reportLoginAttempt(
+          email: email,
+          success: false,
+          errorMessage: 'email-not-verified',
+        ));
         return false;
       }
       _clearError();
+      unawaited(SecurityReporter.instance.reportLoginAttempt(
+        email: email,
+        success: true,
+      ));
       return true;
     } on FirebaseAuthException catch (e) {
       _setError(AuthRepository.messageFromCode(e.code));
+      unawaited(SecurityReporter.instance.reportLoginAttempt(
+        email: email,
+        success: false,
+        errorMessage: e.code,
+      ));
       return false;
-    } catch (_) {
+    } catch (e) {
       _setError('Ocurrió un error inesperado.');
+      unawaited(SecurityReporter.instance.reportLoginAttempt(
+        email: email,
+        success: false,
+        errorMessage: e.toString(),
+      ));
       return false;
     }
   }
@@ -106,12 +128,26 @@ class AuthProvider extends ChangeNotifier {
     try {
       await _repo.signInWithGoogle();
       _clearError();
+      unawaited(SecurityReporter.instance.reportLoginAttempt(
+        email: _repo.currentUser?.email ?? 'google-user',
+        success: true,
+      ));
       return true;
     } on FirebaseAuthException catch (e) {
       _setError(AuthRepository.messageFromCode(e.code));
+      unawaited(SecurityReporter.instance.reportLoginAttempt(
+        email: 'google-user',
+        success: false,
+        errorMessage: e.code,
+      ));
       return false;
-    } catch (_) {
+    } catch (e) {
       _setError('Ocurrió un error inesperado.');
+      unawaited(SecurityReporter.instance.reportLoginAttempt(
+        email: 'google-user',
+        success: false,
+        errorMessage: e.toString(),
+      ));
       return false;
     }
   }

@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:andicrochett/features/analytics/presentation/pages/analytics_dashboard_page.dart';
 import 'package:andicrochett/features/auth/presentation/pages/login_page.dart';
@@ -31,9 +32,16 @@ class AppRoutes {
   ///
   /// El [AuthProvider] actúa como [refreshListenable]: cada vez que cambia
   /// el estado de autenticación go_router re-evalúa el redirect automáticamente.
-  static GoRouter createRouter(AuthProvider authProvider) => GoRouter(
+  ///
+  /// [observers] permite inyectar `NavigatorObserver`s (por ejemplo el
+  /// `FirebaseAnalyticsObserver`) para tracking automático de pantallas.
+  static GoRouter createRouter(
+    AuthProvider authProvider, {
+    List<NavigatorObserver> observers = const [],
+  }) => GoRouter(
     initialLocation: login,
     refreshListenable: authProvider,
+    observers: observers,
     redirect: (_, state) {
       final loggedIn = authProvider.isAuthenticated;
       final onLogin = state.matchedLocation == login;
@@ -43,11 +51,24 @@ class AppRoutes {
       return null;
     },
     routes: [
-      GoRoute(path: login, builder: (_, __) => const LoginPage()),
-      GoRoute(path: register, builder: (_, __) => const RegisterPage()),
-      GoRoute(path: dashboard, builder: (_, __) => const DashboardPage()),
+      GoRoute(
+        path: login,
+        name: 'login',
+        builder: (_, __) => const LoginPage(),
+      ),
+      GoRoute(
+        path: register,
+        name: 'register',
+        builder: (_, __) => const RegisterPage(),
+      ),
+      GoRoute(
+        path: dashboard,
+        name: 'dashboard',
+        builder: (_, __) => const DashboardPage(),
+      ),
       GoRoute(
         path: analytics,
+        name: 'analytics',
         builder: (_, __) => const AnalyticsDashboardPage(),
       ),
     ],

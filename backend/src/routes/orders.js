@@ -15,6 +15,42 @@ function computeProductStatus(quantity) {
   return 'available';
 }
 
+/**
+ * Normaliza un cliente_id incoming:
+ *   - `null`/`undefined`/`0`/no numérico → `null` (sin cliente vinculado)
+ *   - id positivo y existente → el id
+ *   - id positivo pero inexistente → `null` (el pedido queda solo con nombre_cliente)
+ *
+ * Devolver `null` evita violar la FK contra `clientes`. El formulario actual
+ * no tiene picker de cliente, así que cliente_id siempre llega como 0.
+ */
+function resolveClienteId(raw) {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  const row = db.prepare('SELECT id FROM clientes WHERE id = ?').get(n);
+  return row ? n : null;
+}
+
+/**
+ * Valida que cada item.producto_id (cuando se envía) exista en `productos`.
+ * Devuelve `null` si todo OK, o un mensaje de error si alguno falta.
+ */
+function validateItemProductRefs(items) {
+  for (const item of items || []) {
+    const pid = item.producto_id;
+    if (pid == null) continue;
+    const n = Number(pid);
+    if (!Number.isFinite(n) || n <= 0) {
+      return `producto_id inválido en un item: ${pid}`;
+    }
+    const exists = db.prepare('SELECT id FROM productos WHERE id = ?').get(n);
+    if (!exists) {
+      return `El producto con id=${n} no existe`;
+    }
+  }
+  return null;
+}
+
 function loadOrderWithItems(id) {
   const order = db.prepare(`
     SELECT o.*, COALESCE(NULLIF(o.nombre_cliente,''), c.nombre, '') AS nombre_cliente
@@ -77,6 +113,11 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: '"items" debe ser un arreglo' });
   }
 
+  const itemError = validateItemProductRefs(items);
+  if (itemError) return res.status(400).json({ error: itemError });
+
+  const resolvedClienteId = resolveClienteId(cliente_id);
+
   const now = nowIso();
   const create = db.transaction(() => {
     const result = db.prepare(`
@@ -86,7 +127,7 @@ router.post('/', (req, res) => {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       req.user.uid,
-      cliente_id ?? null,
+      resolvedClienteId,
       nombre_cliente || '',
       now,
       fecha_entrega || null,
@@ -100,26 +141,28 @@ router.post('/', (req, res) => {
     const pedidoId = result.lastInsertRowid;
 
     for (const item of items || []) {
+      // Solo insertamos en items_pedido si el producto está vinculado al
+      // inventario. items_json conserva la lista completa por si hace falta.
+      if (item.producto_id == null) continue;
+
       db.prepare(`
         INSERT INTO items_pedido (pedido_id, producto_id, nombre_producto, cantidad, precio_unitario)
         VALUES (?, ?, ?, ?, ?)
       `).run(
         pedidoId,
-        item.producto_id ?? null,
+        Number(item.producto_id),
         item.nombre_producto || '',
         Number(item.cantidad ?? 0),
         Number(item.precio_unitario ?? 0),
       );
 
-      if (item.producto_id != null) {
-        const product = db.prepare('SELECT cantidad FROM productos WHERE id = ?').get(item.producto_id);
-        if (product) {
-          const newQty = product.cantidad - Number(item.cantidad ?? 0);
-          db.prepare(`
-            UPDATE productos SET cantidad = ?, estado = ?, fecha_actualizacion = ?
-            WHERE id = ?
-          `).run(newQty, computeProductStatus(newQty), now, item.producto_id);
-        }
+      const product = db.prepare('SELECT cantidad FROM productos WHERE id = ?').get(Number(item.producto_id));
+      if (product) {
+        const newQty = product.cantidad - Number(item.cantidad ?? 0);
+        db.prepare(`
+          UPDATE productos SET cantidad = ?, estado = ?, fecha_actualizacion = ?
+          WHERE id = ?
+        `).run(newQty, computeProductStatus(newQty), now, Number(item.producto_id));
       }
     }
 
@@ -131,6 +174,9 @@ router.post('/', (req, res) => {
     res.status(201).json(loadOrderWithItems(id));
   } catch (err) {
     console.error('[orders POST]', err);
+    if (err.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
+      return res.status(400).json({ error: 'Referencia inválida: revisa cliente_id y los producto_id de los items.' });
+    }
     res.status(500).json({ error: err.message });
   }
 });
@@ -152,8 +198,15 @@ router.put('/:id', (req, res) => {
     return res.status(400).json({ error: '"items" debe ser un arreglo' });
   }
 
+  if (items !== undefined) {
+    const itemError = validateItemProductRefs(items);
+    if (itemError) return res.status(400).json({ error: itemError });
+  }
+
   const merged = {
-    cliente_id: cliente_id !== undefined ? cliente_id : existing.cliente_id,
+    cliente_id: cliente_id !== undefined
+      ? resolveClienteId(cliente_id)
+      : existing.cliente_id,
     nombre_cliente: nombre_cliente ?? existing.nombre_cliente,
     fecha_pedido: fecha_pedido ?? existing.fecha_pedido,
     fecha_entrega: fecha_entrega !== undefined ? fecha_entrega : existing.fecha_entrega,
@@ -180,12 +233,13 @@ router.put('/:id', (req, res) => {
     if (items !== undefined) {
       db.prepare('DELETE FROM items_pedido WHERE pedido_id = ?').run(id);
       for (const item of items) {
+        if (item.producto_id == null) continue;
         db.prepare(`
           INSERT INTO items_pedido (pedido_id, producto_id, nombre_producto, cantidad, precio_unitario)
           VALUES (?, ?, ?, ?, ?)
         `).run(
           id,
-          item.producto_id ?? null,
+          Number(item.producto_id),
           item.nombre_producto || '',
           Number(item.cantidad ?? 0),
           Number(item.precio_unitario ?? 0),
@@ -199,6 +253,9 @@ router.put('/:id', (req, res) => {
     res.json(loadOrderWithItems(id));
   } catch (err) {
     console.error('[orders PUT]', err);
+    if (err.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
+      return res.status(400).json({ error: 'Referencia inválida: revisa cliente_id y los producto_id de los items.' });
+    }
     res.status(500).json({ error: err.message });
   }
 });

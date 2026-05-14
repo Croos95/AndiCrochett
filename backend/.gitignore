@@ -6,3 +6,6 @@ data/*.db-shm
 .env
 firebase-service-account.json
 *.log
+
+# Certificados auto-generados para HTTPS local (no commitear claves privadas)
+certs/
