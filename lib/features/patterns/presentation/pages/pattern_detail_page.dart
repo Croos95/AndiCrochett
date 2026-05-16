@@ -3,6 +3,7 @@ import 'package:andicrochett/core/constants/colors.dart';
 import 'package:andicrochett/core/constants/sizes.dart';
 import 'package:andicrochett/features/patterns/data/models/pattern_model.dart';
 import 'package:andicrochett/features/patterns/data/repositories/pattern_repository.dart';
+import 'package:andicrochett/features/patterns/presentation/pages/pattern_2d_viewer_page.dart';
 import 'package:andicrochett/features/patterns/presentation/pages/pattern_editor_page.dart';
 
 // =============================================================================
@@ -149,6 +150,16 @@ class _PatternDetailContent extends StatelessWidget {
         ),
       ),
       actions: [
+        IconButton(
+          tooltip: 'Ver en 2D',
+          icon: const Icon(Icons.grid_view_outlined),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => Pattern2DViewerPage(pattern: model),
+            ),
+          ),
+        ),
         IconButton(
           tooltip: 'Editar',
           icon: const Icon(Icons.edit_outlined),
