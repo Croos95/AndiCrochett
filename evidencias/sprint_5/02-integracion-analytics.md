@@ -1,76 +1,156 @@
 # Sprint 5 · Integración Analytics
 
-## Por qué no se instaló `firebase_analytics` todavía
-El package `firebase_analytics` requiere configuración nativa adicional en Android, iOS y Web (regenerar `GoogleService-Info.plist`, agregar el plugin a `build.gradle`, etc.). Hacerlo sin un ambiente donde podamos verificar end-to-end que los eventos llegan al panel de Firebase introduce riesgo de "verde en CI, vacío en consola".
+Dos integraciones distintas trabajando en paralelo:
 
-El diseño actual deja **todo el cableado listo** para conectarlo cuando el equipo decida abrir el panel de Analytics — el cambio es un solo archivo.
+1. **Firebase Analytics** — recibe cada evento del `AnalyticsService` (login, crear producto, navegar a pantalla, etc.). Datos para reportes históricos y embudo, visibles en el panel de Firebase.
+2. **Tabla `audit_log` en el backend** — registra cada request HTTP + cada intento de login. Datos para la pestaña "Seguridad" del dashboard interno.
 
-## Cómo conectarlo (cuando se decida)
+## 1. Firebase Analytics (cliente)
 
-### Paso 1: agregar el package
+### Package
 ```yaml
 # pubspec.yaml
 dependencies:
   firebase_analytics: ^10.10.7
 ```
 
-### Paso 2: reemplazar el stub
-```dart
-// lib/core/services/analytics_service.dart
-import 'package:firebase_analytics/firebase_analytics.dart';
+### Sink real
+[`lib/core/services/analytics_service.dart`](../../lib/core/services/analytics_service.dart):
 
+```dart
 class FirebaseAnalyticsSink implements AnalyticsSink {
+  FirebaseAnalyticsSink({FirebaseAnalytics? analytics})
+    : _analytics = analytics ?? FirebaseAnalytics.instance;
+
   @override
   Future<void> log(AnalyticsEvent event, Map<String, Object?> params) async {
-    await FirebaseAnalytics.instance.logEvent(
+    // Firebase rechaza null y tipos no primitivos — saneamos antes de enviar.
+    final sanitized = <String, Object>{};
+    params.forEach((key, value) {
+      if (value == null) return;
+      if (value is num || value is String || value is bool) {
+        sanitized[key] = value;
+      } else {
+        sanitized[key] = value.toString();
+      }
+    });
+    await _analytics.logEvent(
       name: event.name,
-      parameters: params.cast<String, Object>(),
+      parameters: sanitized.isEmpty ? null : sanitized,
     );
+  }
+
+  Future<void> setUserId(String? uid) async {
+    await _analytics.setUserId(id: uid);
   }
 }
 ```
 
-### Paso 3: registrarlo al iniciar
+### Configuración en bootstrap
+[`lib/main.dart`](../../lib/main.dart):
+
 ```dart
-// lib/main.dart
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  AnalyticsService.instance.configure([
-    ConsoleAnalyticsSink(),
-    FirebaseAnalyticsSink(),
-  ]);
+  final analyticsObserver = _configureAnalytics();
 
-  // ...resto del bootstrap
+  final authProvider = AuthProvider();
+  _router = AppRoutes.createRouter(
+    authProvider,
+    observers: analyticsObserver == null ? const [] : [analyticsObserver],
+  );
+  // ...
+}
+
+FirebaseAnalyticsObserver? _configureAnalytics() {
+  try {
+    final firebaseSink = FirebaseAnalyticsSink();
+    AnalyticsService.instance.configure([
+      ConsoleAnalyticsSink(),  // sigue activo en debug
+      firebaseSink,
+    ]);
+
+    // UID sincronizado con cambios de sesión.
+    FirebaseAuth.instance.userChanges().listen((user) {
+      firebaseSink.setUserId(user?.uid);
+    });
+
+    return FirebaseAnalyticsObserver(analytics: firebaseSink.analytics);
+  } catch (e) {
+    // Si Analytics falla (ej. measurementId faltante en web), la app
+    // sigue funcionando con el ConsoleSink — no aborta el arranque.
+    return null;
+  }
 }
 ```
 
-### Paso 4: validar en la consola de Firebase
-1. Activar la propiedad de Analytics en el proyecto Firebase (Project Settings → Integrations).
-2. Ir a Realtime → DebugView.
-3. En el dispositivo correr `adb shell setprop debug.firebase.analytics.app <package_name>` (Android) o `-FIRDebugEnabled` (iOS).
-4. Disparar un evento desde la app (crear producto) y verificar que aparece en DebugView en < 60s.
+### Qué llega automáticamente a Firebase
 
-## Por qué este diseño no se rompe con la migración
+| Fuente | Evento | Cuándo |
+|---|---|---|
+| `FirebaseAnalyticsObserver` (vía go_router) | `screen_view` | Al entrar a `login`, `register`, `dashboard`, `analytics` |
+| `auth_provider.dart` `signIn` | `login_success` / `login_failed` | Cada intento de login con email |
+| `auth_provider.dart` `signInWithGoogle` | `login_success` / `login_failed` | Cada intento con Google |
+| `inventory_repository.dart` `createProduct` | `product_created` | Cada producto creado |
+| `analytics_dashboard_page.dart` `initState` | `screen_viewed` (manual) | Refuerza la pantalla del dashboard |
 
-- El **catálogo de eventos** ya vive en `AnalyticsEvent`. Cambiar el sink no toca call sites.
-- Los **helpers tipados** (`logProductCreated`, etc.) ya garantizan los parámetros correctos.
-- La inicialización del servicio tiene `try/catch` por sink — si Firebase Analytics falla en un dispositivo, el resto de la app sigue funcionando.
+### Validación en consola de Firebase
+1. **Android/iOS** funcionan out-of-the-box — `google-services.json` / `GoogleService-Info.plist` ya tienen lo necesario.
+2. **Web** requiere `measurementId` en `firebase_options.dart`. Si no está, los eventos web no se envían (pero los móviles sí). Para añadirlo: Firebase Console → Project Settings → Web app → copiar `G-XXXXXXXXXX` y re-correr `flutterfire configure`.
+3. Para ver eventos en tiempo real: Firebase Console → Analytics → DebugView (instantáneo en `flutter run` debug mode).
+
+## 2. `audit_log` (backend)
+
+### Por qué un segundo canal de analítica
+Firebase Analytics es **opcional, externo, agregado** — útil para dashboards de marketing. La tabla `audit_log` es **interna, granular, sincrónica** — alimenta el panel de Seguridad del dueño del producto en tiempo real, sin depender de Firebase.
+
+### Esquema
+[`backend/src/db.js`](../../backend/src/db.js):
+
+```sql
+CREATE TABLE audit_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  event_type TEXT NOT NULL,           -- 'api_call' | 'login_attempt'
+  usuario_id TEXT,                    -- uid si autenticado
+  email TEXT,                         -- login attempts
+  method TEXT, path TEXT,             -- api_call
+  status_code INTEGER,
+  success INTEGER,
+  ip_address TEXT, user_agent TEXT,
+  error_message TEXT,
+  duration_ms INTEGER
+);
+CREATE INDEX idx_audit_timestamp ON audit_log(timestamp);
+CREATE INDEX idx_audit_event_type ON audit_log(event_type);
+```
+
+### Cómo se llena
+- **`api_call`**: middleware [`backend/src/middleware/audit.js`](../../backend/src/middleware/audit.js) intercepta `res.on('finish')` de cada request (excepto `/health` y la propia ruta de login-attempt para no auto-auditarse) y persiste método, path, status, duración, uid, IP, user-agent.
+- **`login_attempt`**: el cliente Flutter llama a [`POST /api/security/login-attempt`](../../backend/src/routes/security.js) **después de cada intento** (éxito o fallo). Esta ruta es pública porque los intentos fallidos no tienen token. La llamada se hace con `unawaited(...)` para no bloquear la UI; si el reporte falla, el login del usuario sigue su curso.
+
+### Quién lo lee
+[`backend/src/routes/analytics.js`](../../backend/src/routes/analytics.js) expone `GET /api/analytics/security` con queries agregadas (counts, joins, group by). El cliente lo consume desde [`analytics_repository.dart`](../../lib/features/analytics/data/analytics_repository.dart) `loadSecurity()` y lo renderiza en la pestaña Seguridad del dashboard.
+
+## Por qué no son redundantes
+
+| Pregunta | Firebase Analytics | `audit_log` |
+|---|---|---|
+| ¿Cuántos usuarios entraron a la app esta semana? | ✅ | ❌ (solo loguea quien intentó) |
+| ¿Cuál es la pantalla más visitada? | ✅ (`screen_view`) | ❌ |
+| ¿Cuántas requests recibió mi backend en las últimas 24h? | ❌ | ✅ |
+| ¿Qué endpoint se cae con más errores 5xx? | ❌ | ✅ |
+| ¿Hay un patrón de intentos fallidos desde una IP? | ❌ | ✅ |
+| ¿Cuántos productos se han creado este mes? | ✅ (eventos) | parcial (via `POST /api/products`) |
+
+Firebase responde "qué hace mi usuario". `audit_log` responde "qué le está pasando a mi backend". Las dos son útiles, y ninguna reemplaza a la otra.
 
 ## Decisiones de diseño
 
-- **Lista de sinks**, no único: permite mantener `ConsoleAnalyticsSink` activo en debug junto a Firebase, sin doble configuración.
-- **Errores absorbidos**: `AnalyticsService.log` nunca relanza errores del sink. Una falla de red en el envío de analítica no debe abortar la creación del producto.
-- **`@visibleForTesting InMemoryAnalyticsSink`**: cualquier test que quiera afirmar sobre eventos lo enchufa con `configure([InMemoryAnalyticsSink()])` y verifica `calls`.
-
-## Estado actual
-| Pieza | Estado |
-|---|---|
-| Catálogo de eventos (enum) | Listo |
-| `AnalyticsService` con fan-out | Listo |
-| `ConsoleAnalyticsSink` (debug) | Listo y activo por default |
-| `FirebaseAnalyticsSink` (stub) | Listo, espera el package |
-| `InMemoryAnalyticsSink` (testing) | Listo |
-| Call site real (createProduct) | Listo, demostrable en consola |
-| Package `firebase_analytics` | **Pendiente** — un solo paso |
+- **Tres sinks coexistiendo**: `ConsoleAnalyticsSink` queda activo en debug junto a Firebase — útil para verificar localmente sin abrir DebugView.
+- **Errores absorbidos**: `AnalyticsService.log` nunca relanza. Una falla de red en analítica no debe abortar la creación del producto.
+- **`@visibleForTesting InMemoryAnalyticsSink`**: tests pueden hacer `AnalyticsService.instance.configure([InMemoryAnalyticsSink()])` y verificar `calls`.
+- **Auditoría síncrona dentro del request**: `res.on('finish')` corre antes de cerrar la conexión, así garantiza orden temporal correcto. Si el INSERT a `audit_log` falla, solo se loguea — nunca tumba la response.
+- **Login attempt como ruta pública**: necesario porque los intentos fallidos no tienen token. Riesgo: alguien podría spammear la ruta. Mitigaciones futuras: rate limiting (`express-rate-limit`) o captcha en el client.

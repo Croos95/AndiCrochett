@@ -1,106 +1,139 @@
 # Sprint 3 · CORS y headers de seguridad
 
-## CORS — allowlist explícita
-[`functions/index.js`](../../functions/index.js) configura CORS con una **lista blanca**, no wildcard:
+## CORS — configurable vía env
+
+[`backend/src/app.js`](../../backend/src/app.js) configura CORS:
 
 ```js
-const allowedOrigins = (process.env.ALLOWED_ORIGINS ||
-  "https://andicrochett-bcb21.web.app,http://localhost:5000")
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
+app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
+```
 
-const corsOptions = {
+Por defecto en desarrollo acepta cualquier origen (`*`) — necesario porque el emulador Android pega desde un origen sintético y Flutter web puede ir desde `chrome-extension://` durante debug.
+
+En producción se restringe con `.env`:
+```env
+CORS_ORIGIN=https://andicrochett-bcb21.web.app
+```
+
+O para multi-origen, intercambiar a una callback function en `app.js`:
+```js
+const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || [];
+app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);            // server-to-server
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    callback(new Error("Origin not allowed by CORS policy"));
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error('Origin not allowed by CORS policy'));
   },
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  credentials: false,
-  maxAge: 86400,
-};
+}));
 ```
 
-- **`origin` callback**: rechaza explícitamente cualquier origen no listado, incluyendo `null` originado por iframes hostiles.
-- **`credentials: false`**: la API usa **Bearer token**, no cookies. Esto evita el ataque "CORS + cookies de sesión".
-- **`maxAge: 86400`**: cache del preflight por 24h reduce latencia sin sacrificar seguridad.
-- **Override por env**: `ALLOWED_ORIGINS` permite agregar dominios (preview deployments) sin recompilar.
+La autenticación va por **Bearer token**, no cookies, así que `credentials: false` es lo seguro (evita el ataque clásico "CORS + cookies de sesión").
 
-Cuando un origen no listado intenta una llamada, el error se enmascara como JSON limpio (no stack trace):
+## Helmet — 10 headers de seguridad inyectados
+
+[`backend/src/app.js`](../../backend/src/app.js):
 
 ```js
-app.use((err, req, res, next) => {
-  if (err && err.message && err.message.includes("CORS")) {
-    logger.warn("Blocked by CORS", { origin: req.headers.origin });
-    res.status(403).json({ error: "CORS blocked" });
-    return;
-  }
-  ...
-});
+const helmet = require('helmet');
+
+app.use(helmet({
+  contentSecurityPolicy: false,                         // API JSON no sirve HTML
+  crossOriginResourcePolicy: { policy: 'cross-origin' }, // permite consumo desde Flutter web
+}));
 ```
 
-## Helmet — headers en el lado de Cloud Functions
+Verificación contra el endpoint real:
+```sh
+curl -k -I https://localhost:3443/health
+```
+
+Output:
+```http
+HTTP/1.1 200 OK
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Resource-Policy: cross-origin
+Origin-Agent-Cluster: ?1
+Referrer-Policy: no-referrer
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+X-DNS-Prefetch-Control: off
+X-Download-Options: noopen
+X-Frame-Options: SAMEORIGIN
+X-Permitted-Cross-Domain-Policies: none
+X-XSS-Protection: 0
+Access-Control-Allow-Origin: *
+```
+
+### Por qué cada header
+
+| Header | Para qué |
+|---|---|
+| `Strict-Transport-Security` | Cuando llega por HTTPS, indica al navegador "no vuelvas a usar HTTP por 1 año". Solo aplica sobre TLS real. |
+| `X-Content-Type-Options: nosniff` | El navegador no debe "adivinar" el MIME — si dijiste `application/json`, eso es. |
+| `X-Frame-Options: SAMEORIGIN` | La API no se puede embeber en iframe de otro dominio (anti-clickjacking, aunque para una API JSON es defensa profunda). |
+| `Referrer-Policy: no-referrer` | No filtres el path actual a sitios externos. |
+| `Cross-Origin-Resource-Policy: cross-origin` | Explícito que la API SÍ puede consumirse desde otros orígenes (lo necesita Flutter web). |
+| `Cross-Origin-Opener-Policy: same-origin` | El popup de OAuth de Google se cierra correctamente sin "fugar" referencias. |
+| `Origin-Agent-Cluster: ?1` | Aísla cada origen en su propio proceso del navegador. |
+| `X-DNS-Prefetch-Control: off` | No prefetcheo DNS de assets que linkeamos. |
+| `X-Download-Options: noopen` | IE/Edge legacy: no abrir descargas en contexto del sitio. |
+| `X-Permitted-Cross-Domain-Policies: none` | No respetar políticas Flash/PDF cross-domain. |
+| `X-XSS-Protection: 0` | Apaga el filtro XSS legacy del navegador (ya no se usa, deprecated). |
+
+`x-powered-by: Express` queda **deshabilitado** por defecto en Helmet — no leakeamos que el backend es Express.
+
+### Por qué CSP está deshabilitado
+
+CSP (`Content-Security-Policy`) es crítico para apps web que sirven HTML. Esta API **solo sirve JSON**, así que CSP es ruido y a veces rompe consumos legítimos. Si en el futuro se agregan rutas HTML (panel admin embebido, p.ej.), se reactiva con:
+
 ```js
-app.disable("x-powered-by");
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: { defaultSrc: ["'self'"] },
+  },
+}));
 ```
 
-Helmet agrega por default:
-- `X-DNS-Prefetch-Control: off`
-- `X-Frame-Options: SAMEORIGIN`
-- `Strict-Transport-Security: max-age=15552000; includeSubDomains`
-- `X-Download-Options: noopen`
-- `X-Content-Type-Options: nosniff`
-- `X-Permitted-Cross-Domain-Policies: none`
-- `Referrer-Policy: no-referrer`
-- `Content-Security-Policy: default-src 'self'`
-- `Origin-Agent-Cluster: ?1`
+## Cache control
 
-`x-powered-by` se deshabilita explícitamente para no leakear que el backend es Express.
+Las rutas de la API no se cachean (decisión implícita por defecto — no setean `Cache-Control`). El cliente Flutter no cachea responses HTTP. Si en el futuro hace falta cachear lecturas, agregar middleware:
 
-## Cache control en respuestas API
 ```js
 app.use((req, res, next) => {
-  res.set("Cache-Control", "no-store");
+  if (req.method === 'GET' && req.path.startsWith('/api/products')) {
+    res.set('Cache-Control', 'public, max-age=30');
+  } else {
+    res.set('Cache-Control', 'no-store');
+  }
   next();
 });
 ```
 
-Las respuestas de la API **nunca** se cachean (ni en el browser, ni en proxies intermedios). Crítico para endpoints autenticados — un proxy compartido podría cachear `/secure/me` de un usuario y servirlo a otro.
+Importante: **nunca cachear endpoints autenticados sin `private`**, porque un proxy compartido podría servir la respuesta de un usuario a otro.
 
-## Headers en Firebase Hosting (lado del frontend)
-[`firebase.json`](../../firebase.json) aplica seis headers a **todas** las respuestas de hosting:
+## Validación
 
-| Header | Valor | Por qué |
-|---|---|---|
-| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains; preload` | Forzar HTTPS por 1 año, incluir subdominios, candidato a preload list |
-| `X-Content-Type-Options` | `nosniff` | El navegador no debe "adivinar" el MIME type |
-| `X-Frame-Options` | `DENY` | La app NO se puede embeber en iframe — previene clickjacking |
-| `Referrer-Policy` | `strict-origin-when-cross-origin` | No filtrar paths a sitios externos |
-| `Permissions-Policy` | `camera=(), microphone=(), geolocation=(), payment=()` | Bloquear APIs sensibles del navegador |
-| `Content-Security-Policy` | `default-src 'self' https: data: blob:; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; upgrade-insecure-requests` | Restringir orígenes de recursos, bloquear `<object>`, forzar HTTPS |
-
-`frame-ancestors 'none'` en CSP refuerza `X-Frame-Options: DENY` para navegadores modernos.
-
-## Validación manual
-
-### Probar CORS:
 ```sh
-# Origen permitido (debe devolver 200 + headers Access-Control-*)
-curl -i -H "Origin: http://localhost:5000" http://localhost:5001/.../api/health
+# 1. CORS — origen accepted
+curl -i -H "Origin: http://localhost:5173" http://localhost:3000/health
+# Expect: Access-Control-Allow-Origin: *  (en dev; en prod sería el origen específico)
 
-# Origen no permitido (debe devolver 403 CORS blocked)
-curl -i -H "Origin: https://evil.com" http://localhost:5001/.../api/health
+# 2. Headers de seguridad
+curl -I http://localhost:3000/health
+curl -k -I https://localhost:3443/health   # HSTS solo aparece visible en HTTPS
+
+# 3. CORS preflight
+curl -i -X OPTIONS http://localhost:3000/api/designs \
+  -H "Origin: http://localhost:5173" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: authorization,content-type"
+# Expect: 204 + Access-Control-Allow-*
 ```
 
-### Probar headers de Hosting:
-```sh
-curl -I https://andicrochett-bcb21.web.app/
-# Debe mostrar strict-transport-security, content-security-policy, etc.
-```
+### Calificación esperada
 
-### Validador online
-- [securityheaders.com](https://securityheaders.com/?q=https://andicrochett-bcb21.web.app) — calificación esperada: **A** o mejor.
-- [Mozilla Observatory](https://observatory.mozilla.org/analyze/andicrochett-bcb21.web.app).
+Pegando contra el backend desplegado en HTTPS:
+
+- [securityheaders.com](https://securityheaders.com/) — esperamos **A** o **A+** con los headers de Helmet.
+- [Mozilla Observatory](https://observatory.mozilla.org/) — similar.
+
+(Estas herramientas requieren un dominio público; localhost no aplica.)

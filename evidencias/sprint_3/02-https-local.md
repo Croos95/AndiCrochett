@@ -1,71 +1,129 @@
 # Sprint 3 · HTTPS local y en producción
 
-## En producción
-La app se despliega a **Firebase Hosting**, que termina TLS en sus servidores con un certificado de Google. La configuración en [`firebase.json`](../../firebase.json) agrega además **HSTS** para forzar HTTPS en visitas subsecuentes:
+## HTTPS local — opt-in con cert auto-firmado
 
-```json
-{
-  "key": "Strict-Transport-Security",
-  "value": "max-age=31536000; includeSubDomains; preload"
-}
+El backend Node soporta HTTPS además del HTTP por defecto, cuando se setea la variable `HTTPS_PORT`:
+
+```sh
+cd backend
+npm run dev:https           # arranca HTTP:3000 + HTTPS:3443
 ```
 
-`max-age=31536000` (1 año) + `preload` lo hace candidato a la lista preload de Chrome, lo cual significa que el navegador **rechaza HTTP** incluso antes de la primera visita.
+Salida esperada:
+```
+[https] Generando certificado auto-firmado en backend/certs   (solo primera vez)
+[server] HTTP  → http://localhost:3000
+[server] HTTPS → https://localhost:3443 (cert auto-firmado)
+```
 
-## Redirección desde el cliente
-[`web/index.html`](../../web/index.html) incluye un guard al inicio del bootstrap que redirige cualquier `http://` (excepto `localhost`) a `https://`:
+### Cómo se genera el certificado
+
+[`backend/src/https.js`](../../backend/src/https.js) usa el package [`selfsigned`](https://www.npmjs.com/package/selfsigned) (sin depender de OpenSSL del sistema). La primera vez genera un cert válido por 365 días y lo cachea en `backend/certs/`:
 
 ```js
-(function enforceSecureOrigin() {
-  var hostname = window.location.hostname;
-  var isLocalhost = hostname === 'localhost' || ...;
-  if (!isLocalhost && window.location.protocol === 'http:') {
-    window.location.replace('https://' + ...);
-  }
-})();
+const generated = await selfsigned.generate(
+  [{ name: 'commonName', value: 'localhost' }],
+  {
+    days: 365,
+    keySize: 2048,
+    algorithm: 'sha256',
+    extensions: [{
+      name: 'subjectAltName',
+      altNames: [
+        { type: 2, value: 'localhost' },     // DNS
+        { type: 7, ip: '127.0.0.1' },        // IP loopback
+        { type: 7, ip: '10.0.2.2' },         // Android emulator → host
+      ],
+    }],
+  },
+);
 ```
 
-Es una segunda línea de defensa: si por alguna razón HSTS no aplicó (primera visita, navegador viejo), el script igual fuerza HTTPS.
+Los archivos `localhost.crt` y `localhost.key` quedan en `backend/certs/` y están **excluidos del repo** vía `.gitignore` (las claves privadas no se commitean nunca).
 
-## En el código Dart
+### Probar que funciona
+
+```sh
+curl -k https://localhost:3443/health
+# {"ok":true,"service":"andicrochett-backend"}
+
+# El flag -k acepta el cert auto-firmado (insecure). En navegador verás
+# "NET::ERR_CERT_AUTHORITY_INVALID" — acepta la advertencia para probar.
+```
+
+### HSTS inyectado por Helmet
+
+Cuando la conexión es HTTPS, el header `Strict-Transport-Security: max-age=31536000; includeSubDomains` aparece en cada respuesta. En HTTP el header sigue presente pero los navegadores lo ignoran (HSTS solo se activa sobre TLS válido).
+
+```sh
+curl -k -I https://localhost:3443/health | grep -i strict
+# Strict-Transport-Security: max-age=31536000; includeSubDomains
+```
+
+### Si quieres cert confiado (sin warnings)
+
+`selfsigned` es suficiente para validar que TLS funciona, pero el navegador siempre muestra advertencia. Para desarrollo prolongado, instalar [`mkcert`](https://github.com/FiloSottile/mkcert):
+
+```sh
+mkcert -install                                              # instala CA local
+mkcert localhost 127.0.0.1 10.0.2.2                          # genera cert confiado
+mv localhost+2.pem backend/certs/localhost.crt
+mv localhost+2-key.pem backend/certs/localhost.key
+npm run dev:https
+```
+
+Ahora `https://localhost:3443` carga con candado verde sin warning.
+
+## HTTPS en producción
+
+### El cliente Flutter
 [`lib/core/config/env.dart`](../../lib/core/config/env.dart) **valida** la URL base al iniciar:
 
 ```dart
-if (isProduction && !resolvedBaseUrl.startsWith('https://')) {
-  throw StateError(
-    'BASE_URL debe usar HTTPS en produccion. Valor recibido: $resolvedBaseUrl',
-  );
+if (isProduction) {
+  if (resolvedBaseUrl.isEmpty) {
+    throw StateError('BASE_URL no esta configurado para produccion...');
+  }
+  if (!resolvedBaseUrl.startsWith('https://')) {
+    throw StateError('BASE_URL debe usar HTTPS en produccion...');
+  }
 }
 ```
 
-Si alguien deploya un build de release con `--dart-define=BASE_URL=http://...` por error, la app **no arranca**. Falla rápido.
+Si alguien deploya un build de release con `--dart-define=BASE_URL=http://...` por error, la app **no arranca**. Falla rápido en el bootstrap.
 
-## Desarrollo local
+### Android NetworkSecurityConfig
+[`android/app/src/main/res/xml/network_security_config.xml`](../../android/app/src/main/res/xml/network_security_config.xml) permite cleartext (HTTP) **solo** para los hosts de desarrollo:
 
-### Opción 1 — Emulador con HTTP (default)
-Para iterar rápido durante development, los emuladores corren en HTTP. La política de `web/index.html` deja pasar `localhost`. Esto es suficiente para los talleres internos.
-
-```sh
-firebase emulators:start --only functions,hosting
-flutter run -d chrome
+```xml
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>
 ```
 
-### Opción 2 — HTTPS local con `mkcert`
-Cuando se necesita probar flujos que dependen de `Secure` cookies o de las APIs `crypto.subtle` (que requieren contexto seguro):
-
-```sh
-# 1. Instalar mkcert (https://github.com/FiloSottile/mkcert)
-mkcert -install
-mkcert localhost 127.0.0.1
-
-# 2. Servir el build con un servidor que acepte cert/key
-flutter build web
-npx http-server build/web -S -C localhost+1.pem -K localhost+1-key.pem -p 5000
+Y se referencia en el AndroidManifest:
+```xml
+<application android:networkSecurityConfig="@xml/network_security_config" ...>
 ```
 
-`mkcert` instala una CA local que el navegador confía, así que `https://localhost:5000` se ve verde sin warning.
+Resultado: en debug el emulador puede pegarle a `http://10.0.2.2:3000`, pero en cualquier release contra producción **el sistema operativo bloquea HTTP** — solo HTTPS pasa.
+
+### Backend en producción
+Cuando se despliegue el backend (Railway / Render / VPS), el `HTTPS_PORT` se sustituye por el listener TLS que ofrezca el host. Railway y Render terminan TLS por ti — pones el backend en HTTP detrás del proxy y el certificado lo gestiona la plataforma.
 
 ## Validación
-- `https://andicrochett-bcb21.web.app` carga con candado en verde — TLS provisto por Firebase Hosting.
-- En el inspector → Network → cualquier asset: ver header `strict-transport-security: max-age=31536000; includeSubDomains; preload`.
-- Forzar `http://andicrochett-bcb21.web.app` redirige a `https://` automáticamente (HSTS).
+
+| Capa | Cómo se valida |
+|---|---|
+| Backend local | `curl -k https://localhost:3443/health` devuelve 200 + HSTS |
+| Cliente Flutter (release) | Build de release con BASE_URL HTTP **explota al arrancar** |
+| Android (release) | Cualquier request HTTP a IP no listada **es bloqueada por el SO** |
+| Producción | Tu host (Railway/Render) emite cert Let's Encrypt automático |
+
+## Histórico (referencia)
+
+Originalmente este sprint cubría HTTPS vía Firebase Hosting + redirecciones en `web/index.html` para el frontend desplegado en `https://andicrochett-bcb21.web.app`. Esos artefactos siguen en el repo (`firebase.json`, `web/index.html`) por si se decide mantener el deploy de Firebase Hosting en paralelo. La cobertura del Sprint 3 ahora se centra en el backend Node propio.

@@ -1,15 +1,20 @@
 # Sprint 3 · JWT middleware
 
 ## El contrato
-Cualquier ruta montada bajo `/secure/*` exige:
+Casi todas las rutas del backend exigen:
 
 ```
 Authorization: Bearer <Firebase ID Token>
 ```
 
-El token lo emite Firebase Auth en el cliente con `user.getIdToken()`. Es un **JWT real**: firmado, con expiración de 1 hora y rotación de claves automática del lado de Google.
+El token lo emite Firebase Auth en el cliente con `user.getIdToken()`. Es un **JWT real**: firmado por Google, con expiración de 1 hora y rotación de claves automática.
+
+**Excepciones (rutas públicas)**:
+- `GET /health` — liveness check
+- `POST /api/security/login-attempt` — necesariamente pública porque los intentos fallidos no tienen token aún
 
 ## Por qué Firebase ID token y no un JWT custom
+
 | Si emitiéramos JWT propios | Con Firebase ID token |
 |---|---|
 | Necesitamos un keystore | Google lo administra |
@@ -22,93 +27,128 @@ Reusamos la infra que ya teníamos para auth y obtenemos rotación + revocación
 
 ## Implementación
 
-[`functions/middleware/auth.js`](../../functions/middleware/auth.js):
+[`backend/src/auth.js`](../../backend/src/auth.js):
 
 ```js
-function authenticate(opts = {}) {
-  const verify = opts.verifyIdToken
-    || ((token) => admin.auth().verifyIdToken(token));
+async function verifyFirebaseToken(req, res, next) {
+  const header = req.headers.authorization || '';
+  const match = header.match(/^Bearer (.+)$/);
 
-  return async (req, res, next) => {
-    const header = req.get("Authorization") || "";
-    if (!header.startsWith("Bearer ")) {
-      return res.status(401).json({ error: "missing_bearer_token", ... });
-    }
-    const token = header.slice("Bearer ".length).trim();
-    if (!token) return res.status(401).json({ error: "empty_bearer_token", ... });
+  if (!match) {
+    return res.status(401).json({ error: 'Token de autorización faltante' });
+  }
 
-    try {
-      const decoded = await verify(token);
-      req.user = { uid: decoded.uid, email: decoded.email, ... };
-      next();
-    } catch (err) {
-      return res.status(401).json({ error: "invalid_token", code: err.code, ... });
-    }
-  };
+  // Bypass para tests (solo si NODE_ENV=test):
+  // cualquier token "test-<uid>" se acepta y se decodifica como usuario sintético.
+  if (process.env.NODE_ENV === 'test' && match[1].startsWith('test-')) {
+    req.user = {
+      uid: match[1].slice('test-'.length) || 'test-user',
+      email: 'test@example.com',
+      emailVerified: true,
+    };
+    return next();
+  }
+
+  if (!admin.apps.length) {
+    return res.status(500).json({ error: 'Backend sin credenciales de Firebase' });
+  }
+
+  try {
+    const decoded = await admin.auth().verifyIdToken(match[1]);
+    req.user = {
+      uid: decoded.uid,
+      email: decoded.email,
+      emailVerified: decoded.email_verified,
+    };
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Token inválido o expirado' });
+  }
 }
 ```
 
 Puntos clave del diseño:
 
-1. **Factory pattern**: `authenticate()` devuelve el middleware. Permite inyectar `verifyIdToken` en pruebas sin tocar Firebase real.
-2. **Respuestas tipadas**: `missing_bearer_token` / `empty_bearer_token` / `invalid_token` permiten al cliente distinguir entre "olvidaste el header" vs "el token expiró".
-3. **`req.user`** adjunto al request — los handlers reciben `uid`, `email`, `emailVerified`, `authTime` sin volver a parsear.
+1. **`req.user` adjunto al request** — los handlers reciben `uid`, `email`, `emailVerified` sin volver a parsear.
+2. **Bypass para tests** detrás de `NODE_ENV=test` — imposible activarlo en producción. Permite a `supertest` simular usuarios sin Firebase real.
+3. **Inicialización lazy** — si el `firebase-service-account.json` no está, el middleware responde 500 con mensaje claro en vez de tirar al arranque.
 
 ## Aplicación
-En [`functions/index.js`](../../functions/index.js):
+
+[`backend/src/app.js`](../../backend/src/app.js):
 
 ```js
-const secure = express.Router();
-secure.use(authenticate());
+const { verifyFirebaseToken } = require('./auth');
 
-secure.get("/me", (req, res) => res.json({ user: req.user }));
-secure.get("/ping", (req, res) => res.json({ ok: true, uid: req.user.uid }));
+// Cada router protegido aplica el middleware:
+app.use('/api/patterns', patternsRouter);   // patterns.js usa verifyFirebaseToken
+app.use('/api/designs', designsRouter);
+app.use('/api/products', productsRouter);
+// ...
 
-app.use("/secure", secure);
+// La única ruta pública (excepto /health):
+app.use('/api/security', securityRouter);   // POST /login-attempt sin middleware
 ```
 
-Rutas resultantes:
-- `GET /api/secure/me` → devuelve el usuario actual.
-- `GET /api/secure/ping` → healthcheck autenticado.
+Dentro de cada router:
+```js
+// backend/src/routes/designs.js
+const router = express.Router();
+router.use(verifyFirebaseToken);
+```
 
-Las rutas públicas (`/api/health`) quedan intactas.
+## El uid sale del token, no del body
+
+Decisión importante: **el cliente NUNCA manda su propio `usuario_id`**. Todo lo que escribe el backend con `usuario_id` lo toma de `req.user.uid` (post-verificación). Esto previene que un usuario manipule el body para crear datos a nombre de otro.
+
+```js
+// backend/src/routes/designs.js
+router.post('/', (req, res) => {
+  const { nombre, descripcion } = req.body;
+  // ...
+  db.prepare(`INSERT INTO designs ... VALUES (?, ?, ?, ...)`)
+    .run(nombre, descripcion, req.user.uid, now, now);
+                                  // ↑ del token, no del body
+});
+```
 
 ## Pruebas
-[`functions/test/auth.test.js`](../../functions/test/auth.test.js) usa `node:test` (built-in, sin deps) e inyecta un `verifyIdToken` mock:
+
+[`backend/test/smoke.test.js`](../../backend/test/smoke.test.js) cubre el middleware indirectamente vía las rutas protegidas:
 
 | Test | Verifica |
 |---|---|
-| rechaza request sin header Authorization | 401 + `missing_bearer_token` |
-| rechaza header sin prefijo Bearer | 401 + `missing_bearer_token` |
-| rechaza Bearer vacío | 401 + `empty_bearer_token` |
-| rechaza cuando el verificador lanza | 401 + `invalid_token` + código del SDK |
-| acepta token válido y adjunta req.user | 200 + body con `uid`/`email`/`emailVerified` |
-
-**5/5 pasan.** Corren en CI dentro del job `functions-lint` (renombrar mentalmente — ahora también ejecuta `npm test`).
+| `GET /api/designs sin auth → 401` | Header faltante → 401 |
+| `GET /api/designs con token de prueba → 200` | `test-user-1` → bypass exitoso |
+| `POST /api/designs crea y luego GET lo devuelve` | `req.user.uid` se inyecta correctamente en el INSERT |
+| `POST /api/security/login-attempt es público` | Confirma que las rutas excluidas no aplican el middleware |
 
 ## Flujo end-to-end
 
 ```
 [Flutter app]
-    ↓ user.getIdToken()
+    ↓ user.getIdToken()  (Firebase SDK)
     ↓
 "eyJhbGc..."
-    ↓ Authorization: Bearer eyJhbGc...
+    ↓ Authorization: Bearer eyJhbGc...     (ApiClient inyecta automático)
     ↓
-[Express /api/secure/me]
+[Backend Express :3000 o :3443]
     ↓
-[helmet]  → headers de seguridad
-[cors]    → valida origen
-[authenticate()]
+[helmet]                → headers de seguridad
+[cors]                  → valida origen
+[auditMiddleware]       → registra en audit_log al finalizar
+[verifyFirebaseToken]
     ↓ admin.auth().verifyIdToken("eyJhbGc...")
-    ↓ ✔ válido → req.user = {...}
-    ↓ ✘ inválido → 401 invalid_token
+    ↓ ✔ válido → req.user = { uid, email, ... }
+    ↓ ✘ inválido → 401 + body { error: "Token inválido o expirado" }
 [handler]
-    ↓ res.json({ user: req.user })
+    ↓ res.json({...})
+[response]
+    ↓ se loguea audit_log con status_code, duration_ms, uid
 ```
 
 ## Errores comunes
 
-- **401 invalid_token + `auth/id-token-expired`**: el cliente está usando un token > 1h. Llama `getIdToken(true)` para forzar refresh.
-- **401 missing_bearer_token**: el cliente no envió el header. Verificar que `SecureApiClient` esté siendo usado.
-- **403 CORS blocked**: el origen no está en `ALLOWED_ORIGINS`. Ver [03-cors-headers.md](03-cors-headers.md).
+- **401 + "Token inválido o expirado"**: el cliente usa un token > 1h o de otro proyecto Firebase. Llama `getIdToken(true)` para forzar refresh.
+- **401 + "Token de autorización faltante"**: el `ApiClient` no fue inicializado o el usuario hizo logout. Verificar `FirebaseAuth.instance.currentUser != null`.
+- **500 + "Backend sin credenciales de Firebase"**: falta el `firebase-service-account.json` en el backend. Ver [README del backend](../../backend/README.md).
