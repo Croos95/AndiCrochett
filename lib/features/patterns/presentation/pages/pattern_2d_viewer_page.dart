@@ -16,16 +16,27 @@ import 'package:andicrochett/features/patterns/presentation/widgets/stitch_symbo
 import 'package:andicrochett/features/patterns/utils/stitch_graph.dart';
 import 'package:andicrochett/features/patterns/utils/stitch_layout.dart';
 
-class Pattern2DViewerPage extends StatelessWidget {
+class Pattern2DViewerPage extends StatefulWidget {
   const Pattern2DViewerPage({super.key, required this.pattern});
 
   final PatternModel pattern;
 
   @override
+  State<Pattern2DViewerPage> createState() => _Pattern2DViewerPageState();
+}
+
+class _Pattern2DViewerPageState extends State<Pattern2DViewerPage> {
+  // Toggle del usuario para mostrar las líneas que unen puntadas consecutivas
+  // de la misma vuelta. Útil cuando las vueltas no se leen como anillos
+  // (p.ej. porque el conteo cambia entre vueltas y los hijos no quedan
+  // alineados radialmente con sus padres).
+  bool _showSiblingLinks = false;
+
+  @override
   Widget build(BuildContext context) {
     // El grafo y el layout se calculan una sola vez por construcción de la
     // página. Para un patrón típico (~500 nodos) tarda milisegundos.
-    final graph = StitchGraphBuilder.fromPattern(pattern);
+    final graph = StitchGraphBuilder.fromPattern(widget.pattern);
     final layout = StitchLayoutEngine.compute(graph);
 
     return Scaffold(
@@ -34,12 +45,26 @@ class Pattern2DViewerPage extends StatelessWidget {
         backgroundColor: AppColors.verdeOliva,
         foregroundColor: Colors.white,
         title: Text(
-          pattern.name,
+          widget.pattern.name,
           style: const TextStyle(
             fontFamily: 'Lora',
             fontWeight: FontWeight.bold,
           ),
         ),
+        actions: [
+          IconButton(
+            tooltip: _showSiblingLinks
+                ? 'Ocultar líneas entre puntadas de la vuelta'
+                : 'Mostrar líneas entre puntadas de la vuelta',
+            icon: Icon(
+              _showSiblingLinks
+                  ? Icons.timeline
+                  : Icons.show_chart_outlined,
+            ),
+            onPressed: () =>
+                setState(() => _showSiblingLinks = !_showSiblingLinks),
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -47,7 +72,11 @@ class Pattern2DViewerPage extends StatelessWidget {
           Expanded(
             child: graph.nodes.isEmpty
                 ? const _EmptyDiagram()
-                : _DiagramCanvas(graph: graph, layout: layout),
+                : _DiagramCanvas(
+                    graph: graph,
+                    layout: layout,
+                    showSiblingLinks: _showSiblingLinks,
+                  ),
           ),
           const _Legend(),
         ],
@@ -59,9 +88,14 @@ class Pattern2DViewerPage extends StatelessWidget {
 // ── Canvas con zoom/pan ───────────────────────────────────────────────────
 
 class _DiagramCanvas extends StatelessWidget {
-  const _DiagramCanvas({required this.graph, required this.layout});
+  const _DiagramCanvas({
+    required this.graph,
+    required this.layout,
+    required this.showSiblingLinks,
+  });
   final StitchGraph graph;
   final StitchLayout layout;
+  final bool showSiblingLinks;
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +106,11 @@ class _DiagramCanvas extends StatelessWidget {
       boundaryMargin: const EdgeInsets.all(200),
       child: SizedBox.expand(
         child: CustomPaint(
-          painter: StitchSymbolPainter(graph: graph, layout: layout),
+          painter: StitchSymbolPainter(
+            graph: graph,
+            layout: layout,
+            showSiblingLinks: showSiblingLinks,
+          ),
         ),
       ),
     );

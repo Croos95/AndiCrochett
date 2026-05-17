@@ -12,6 +12,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'package:andicrochett/core/constants/colors.dart';
+import 'package:andicrochett/features/patterns/data/models/pattern_model.dart';
 import 'package:andicrochett/features/patterns/utils/stitch_graph.dart';
 import 'package:andicrochett/features/patterns/utils/stitch_layout.dart';
 import 'package:andicrochett/features/patterns/utils/stitch_registry.dart';
@@ -21,12 +22,25 @@ class StitchSymbolPainter extends CustomPainter {
     required this.graph,
     required this.layout,
     this.showRoundLabels = true,
+    this.showRingGuides = true,
+    this.showSiblingLinks = false,
     this.highlightedNodeId,
   });
 
   final StitchGraph graph;
   final StitchLayout layout;
   final bool showRoundLabels;
+
+  /// Dibuja un anillo (circular) o línea (rows) tenue por vuelta como guía
+  /// de fondo, para que el lector identifique los anillos sin tener que
+  /// inferirlos a partir de las puntadas dispersas.
+  final bool showRingGuides;
+
+  /// Dibuja una línea entre puntadas consecutivas de la misma vuelta. En
+  /// vueltas circulares cerradas también une la última con la primera.
+  /// Útil cuando los hijos no quedan alineados radialmente con sus padres
+  /// y la vuelta no se lee como anillo.
+  final bool showSiblingLinks;
 
   /// Si está seteado, ese nodo se dibuja con un círculo de resalte detrás.
   /// Lo usa la UI cuando el usuario toca una línea del texto del patrón.
@@ -56,7 +70,17 @@ class StitchSymbolPainter extends CustomPainter {
     canvas.translate(offsetX, offsetY);
     canvas.scale(scale);
 
-    // ── Conexiones primero (para que los símbolos queden encima) ───────────
+    // ── Guías de vuelta (capa más al fondo) ────────────────────────────────
+    if (showRingGuides) {
+      _drawRingGuides(canvas);
+    }
+
+    // ── Líneas entre hermanos (capa intermedia) ────────────────────────────
+    if (showSiblingLinks) {
+      _drawSiblingLinks(canvas);
+    }
+
+    // ── Conexiones padre↔hijo (encima de las guías) ────────────────────────
     _drawConnections(canvas);
 
     // ── Símbolos de cada nodo ──────────────────────────────────────────────
@@ -77,6 +101,84 @@ class StitchSymbolPainter extends CustomPainter {
     }
 
     canvas.restore();
+  }
+
+  // ── Guías de vuelta ──────────────────────────────────────────────────────
+  //
+  // En circular/mixed, un anillo tenue por vuelta hace evidente el "aro" sin
+  // depender de que las líneas padre↔hijo formen radios limpios. El radio se
+  // deriva de la posición del primer nodo de la vuelta (todos los nodos de
+  // la misma vuelta comparten radio en el layout circular).
+  //
+  // En rows, dibujamos una línea horizontal tenue a la altura de la fila.
+
+  void _drawRingGuides(Canvas canvas) {
+    final paint = Paint()
+      ..color = AppColors.border.withValues(alpha: 0.4)
+      ..strokeWidth = _strokeWidth * 0.35
+      ..style = PaintingStyle.stroke;
+
+    final isCircular =
+        graph.type == PatternType.circular || graph.type == PatternType.mixed;
+
+    for (final round in graph.rounds) {
+      final firstPos = layout.positions[round.startNodeId];
+      if (firstPos == null) continue;
+
+      if (isCircular) {
+        final radius = math.sqrt(
+          firstPos.x * firstPos.x + firstPos.y * firstPos.y,
+        );
+        if (radius < 0.001) continue;
+        canvas.drawCircle(Offset.zero, radius, paint);
+      } else {
+        // En rows, la fila ocupa toda la franja horizontal del bbox a la
+        // altura de su primer nodo.
+        canvas.drawLine(
+          Offset(layout.minX, firstPos.y),
+          Offset(layout.maxX, firstPos.y),
+          paint,
+        );
+      }
+    }
+  }
+
+  // ── Conexiones entre hermanos de la misma vuelta ────────────────────────
+  //
+  // Une cada nodo con el siguiente nodo en su vuelta. En vueltas cerradas
+  // (`isClosed=true`) también cierra el último con el primero, formando el
+  // anillo. Es una capa opcional: cuando las relaciones padre↔hijo no
+  // alinean radialmente, esta línea hace explícito el contorno de la vuelta.
+
+  void _drawSiblingLinks(Canvas canvas) {
+    final paint = Paint()
+      ..color = AppColors.border.withValues(alpha: 0.55)
+      ..strokeWidth = _strokeWidth * 0.45
+      ..style = PaintingStyle.stroke;
+
+    for (final round in graph.rounds) {
+      final nodesInRound = graph.nodesInRound(round.number);
+      if (nodesInRound.length < 2) continue;
+
+      for (int i = 0; i < nodesInRound.length - 1; i++) {
+        final a = layout.positions[nodesInRound[i].id];
+        final b = layout.positions[nodesInRound[i + 1].id];
+        if (a == null || b == null) continue;
+        canvas.drawLine(Offset(a.x, a.y), Offset(b.x, b.y), paint);
+      }
+
+      if (round.isClosed) {
+        final first = layout.positions[nodesInRound.first.id];
+        final last = layout.positions[nodesInRound.last.id];
+        if (first != null && last != null) {
+          canvas.drawLine(
+            Offset(last.x, last.y),
+            Offset(first.x, first.y),
+            paint,
+          );
+        }
+      }
+    }
   }
 
   // ── Conexiones padre→hijo ────────────────────────────────────────────────
@@ -399,6 +501,8 @@ class StitchSymbolPainter extends CustomPainter {
     return old.graph != graph ||
         old.layout != layout ||
         old.showRoundLabels != showRoundLabels ||
+        old.showRingGuides != showRingGuides ||
+        old.showSiblingLinks != showSiblingLinks ||
         old.highlightedNodeId != highlightedNodeId;
   }
 }
